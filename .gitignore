@@ -1,0 +1,44 @@
+# ===== 依赖与构建产物（不需要进版本库）=====
+node_modules/
+dist/
+target/
+
+# ===== 用户上传的图片 / 文件 =====
+uploads/
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.iml
+
+# ===== 日志 =====
+*.log
+*.log.*
+logs/
+
+# ===== ⚠️ 数据库备份：里面有真实用户数据（含密码哈希），绝对不要提交 =====
+backups/
+**/backups/
+*.sql.gz
+
+# ===== 本地环境变量（用环境变量覆盖密钥时放在这里，别提交）=====
+.env
+.env.local
+.env.*.local
+
+# ===== 本地私有配置：数据库密码、JWT 密钥都放这里，绝对不要提交 =====
+# 模板 application-local.yml.example 是提交的，真实文件不提交
+application-local.yml
+**/application-local.yml
+
+# ===== 用户上传的图片 / 文件 =====
+uploads/
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
+
+# ===== 注意 =====
+# application.yml 里目前带着本地开发用的数据库密码和 JWT 默认密钥。
+# 上线时请用环境变量覆盖（DB_USERNAME / DB_PASSWORD / BLOG_JWT_SECRET），
+# 不要把真实生产密码写回配置文件。

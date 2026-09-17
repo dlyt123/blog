@@ -1,0 +1,443 @@
+/* ============================================
+   博客全局样式
+   配色：樱花粉 + 天空蓝 + 薄荷绿 + 薰衣草紫
+   ============================================ */
+
+:root {
+  /* Element Plus 主题色改为樱花粉 */
+  --el-color-primary: #ff6b9d;
+  --el-color-primary-light-3: #ff8fb5;
+  --el-color-primary-light-5: #ffb3cd;
+  --el-color-primary-light-7: #ffd6e4;
+  --el-color-primary-light-8: #ffe3ed;
+  --el-color-primary-light-9: #fff0f5;
+  --el-color-primary-dark-2: #e04e82;
+
+  /* 主题配色 */
+  --anime-pink: #ff6b9d;
+  --anime-pink-light: #ffd6e4;
+  --anime-blue: #7ec8e3;
+  --anime-blue-light: #d6f0fb;
+  --anime-mint: #8fd3c4;
+  --anime-purple: #b39ddb;
+  --anime-purple-light: #e8e0f5;
+  --anime-yellow: #ffd98e;
+  --anime-text: #4a4a5a;
+  --anime-bg: #fff8fb;
+
+  /* ===== 文字色阶（暗色模式切换的核心）=====
+     以前各组件里写死了 #3a3a4a / #7a7a8a / #a0a0b0 / #c5b8c5 等颜色，
+     结果一开暗色模式，深灰字配深色背景 → 大片文字看不清。
+     统一改用这组变量，暗色模式只需在下面覆盖一次即可。 */
+  --text-strong: #3a3a4a;   /* 标题、重要文字 */
+  --text-body: #7a7a8a;     /* 正文、次要说明 */
+  --text-muted: #a0a0b0;    /* 更弱的辅助信息（时间、计数） */
+  --text-faint: #c5b8c5;    /* 最弱（占位、提示） */
+
+  /* ===== 表面与描边 =====
+     同理：卡片、按钮、输入框的浅色底和浅色描边也要走变量，
+     否则暗色下会出现「白底配浅字」这种更糟的组合。
+     注意：用变量就不必和组件 scoped 样式比特异性，天然继承生效。 */
+  --surface: #fff;          /* 卡片 / 控件底色 */
+  --surface-soft: #faf5f8;  /* 次级底色（浅灰粉） */
+  --surface-pink: #fff0f6;  /* 粉色高亮底（选中态） */
+  --border-soft: #f0d8e0;   /* 浅粉描边 */
+
+  --anime-gradient: linear-gradient(135deg, #ffd6e4 0%, #d6f0fb 45%, #e8e0f5 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
+  color: var(--anime-text);
+  background: var(--anime-bg);
+}
+
+#app {
+  min-height: 100vh;
+  background: var(--anime-gradient);
+  background-attachment: fixed;
+}
+
+/* 圆角卡片 */
+.anime-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.12);
+  border: 1px solid rgba(255, 107, 157, 0.15);
+  padding: 20px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.anime-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(255, 107, 157, 0.22);
+}
+
+/* 页面容器 */
+.anime-container {
+  /* ⚠️ width:100% 是必须的：
+     主容器是 .anime-layout（display:flex 列）的子项。做为 flex 子项时，
+     它的宽度会被「内容的最小宽度」撑开 —— 正文里一张宽表格就能让整个容器
+     涨到 601px，而手机屏只有 390px，于是整页横向溢出、正文被裁掉。
+     实测：加上 width:100% 后宽度立刻回到 390。 */
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px;
+  min-width: 0;
+}
+
+/* 标题装饰 */
+.anime-title {
+  position: relative;
+  padding-left: 14px;
+  font-weight: 600;
+}
+
+.anime-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 70%;
+  border-radius: 3px;
+  background: var(--anime-gradient);
+}
+
+/* 链接与文本 */
+a {
+  color: var(--anime-pink);
+  text-decoration: none;
+}
+
+a:hover {
+  color: #e04e82;
+}
+
+/* 标签胶囊 */
+.anime-tag {
+  display: inline-block;
+  padding: 3px 12px;
+  margin: 0 6px 6px 0;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.anime-tag:hover {
+  opacity: 0.85;
+}
+
+/* 多彩标签配色 */
+.anime-tag:nth-child(4n + 1) { background: var(--anime-pink); }
+.anime-tag:nth-child(4n + 2) { background: var(--anime-blue); }
+.anime-tag:nth-child(4n + 3) { background: var(--anime-mint); }
+.anime-tag:nth-child(4n + 4) { background: var(--anime-purple); }
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--anime-pink-light);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Markdown 内容样式 */
+.markdown-body {
+  line-height: 1.8;
+  font-size: 15px;
+  word-break: break-word;
+  /* 表格列数多时允许横向滚动，避免被挤压变形 */
+  overflow-x: auto;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  margin: 1.2em 0 0.6em;
+  color: var(--text-strong);
+}
+
+.markdown-body h2 {
+  border-bottom: 2px solid var(--anime-pink-light);
+  padding-bottom: 0.3em;
+}
+
+.markdown-body code {
+  background: #f5f0f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-body pre {
+  background: #2d2a3a;
+  color: #e8e8f0;
+  padding: 16px;
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* 没有语法高亮的代码块（如缩进代码）才继承 pre 的颜色；
+   带 .hljs 的代码块由高亮主题自己上色，不能让 color:inherit 把 token 颜色覆盖掉 */
+.markdown-body pre code:not(.hljs) {
+  color: inherit;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+/* ============ 正文防溢出（手机端关键）============
+   正文是用户自己写的，里面可能有宽表格、长链接、长英文单词。
+   这些都会产生很大的「最小宽度」，把移动端布局顶破。
+   统一让它们自己滚动或换行，别影响整页宽度。 */
+.markdown-body {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* 宽表格：整张表可横向滚动，而不是把页面撑宽（GitHub 同款做法） */
+.markdown-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.markdown-body pre {
+  max-width: 100%;
+}
+
+.markdown-body img {
+  height: auto;
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid var(--anime-purple);
+  background: var(--anime-purple-light);
+  padding: 10px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 1em 0;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+/* 列数多时给单元格保底宽度，超出部分由 .markdown-body 横向滚动 */
+.markdown-body th,
+.markdown-body td {
+  min-width: 80px;
+}
+
+.markdown-body th, .markdown-body td {
+  border: 1px solid #e8d8e8;
+  padding: 8px 12px;
+}
+
+.markdown-body th {
+  background: var(--anime-pink-light);
+}
+
+/* 编辑器产出内容的其他常用排版 */
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 1em 0 0.5em;
+  color: var(--text-strong);
+}
+
+.markdown-body p {
+  margin: 0.8em 0;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.6em;
+  margin: 0.6em 0;
+}
+
+.markdown-body li {
+  margin: 0.3em 0;
+}
+
+.markdown-body a {
+  color: #e04e82;
+  text-decoration: underline;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px dashed #f0d8e0;
+  margin: 1.6em 0;
+}
+
+.markdown-body img {
+  display: block;
+  margin: 1em auto;
+}
+
+.markdown-body table tr:nth-child(even) {
+  background: #fdf8fb;
+}
+
+/* ============ 代码块一键复制 ============ */
+.code-block {
+  position: relative;
+  margin: 1em 0;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8e8f0;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.code-copy-btn:hover {
+  opacity: 1;
+}
+
+/* ============ 深色模式（best-effort 覆盖主要界面） ============ */
+[data-theme='dark'] {
+  --anime-bg: #16161f;
+  --anime-text: #d8d8e4;
+  --anime-pink-light: #5a3a48;
+  --anime-blue-light: #2a3d48;
+  --anime-purple-light: #38304a;
+
+  /* 暗色下的文字色阶：整体提亮，保证在深色卡片上读得清 */
+  --text-strong: #eaeaf4;
+  --text-body: #bcbccc;
+  --text-muted: #9494a8;
+  --text-faint: #7c7c90;
+
+  /* 暗色下的表面与描边 */
+  --surface: #20202c;
+  --surface-soft: #262633;
+  --surface-pink: #3a2530;
+  --border-soft: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] #app {
+  background: #16161f;
+}
+
+[data-theme='dark'] body {
+  background: #16161f;
+  color: #d8d8e4;
+}
+
+/* 首页 hero：暗色下把白色遮罩换成深色，否则一大块惨白很刺眼。
+   用 html[...] 提高一级特异性，确保盖得住组件里 scoped 的 .hero 规则。 */
+html[data-theme='dark'] .hero {
+  background-image:
+    linear-gradient(100deg, rgba(22, 22, 31, 0.94) 0%, rgba(22, 22, 31, 0.78) 40%, rgba(22, 22, 31, 0.3) 100%),
+    url('../assets/anime-hero.webp');
+}
+
+html[data-theme='dark'] .hero-title {
+  color: #ff9ec4;
+  text-shadow: none;
+}
+
+html[data-theme='dark'] .hero-subtitle {
+  color: #bdbdcd;
+  text-shadow: none;
+}
+
+/* 卡片：全局的 anime-card 与各页面常见的白底卡片 */
+[data-theme='dark'] .anime-card,
+[data-theme='dark'] .stat-card,
+[data-theme='dark'] .side-card,
+[data-theme='dark'] .chart-card,
+[data-theme='dark'] .profile-card,
+[data-theme='dark'] .count-item,
+[data-theme='dark'] .copyright,
+[data-theme='dark'] .related {
+  background: #20202c;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme='dark'] .navbar {
+  background: rgba(22, 22, 31, 0.9);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] .user-dropdown {
+  background: #20202c;
+}
+
+[data-theme='dark'] .user-name,
+[data-theme='dark'] .dropdown-item,
+[data-theme='dark'] .title,
+[data-theme='dark'] .list-title,
+[data-theme='dark'] .side-title,
+[data-theme='dark'] .related-title,
+[data-theme='dark'] .page-title,
+[data-theme='dark'] .section-title {
+  color: #e8e8f0;
+}
+
+[data-theme='dark'] .dropdown-item:hover {
+  background: #2a2a38;
+}
+
+/* Markdown 正文 */
+[data-theme='dark'] .markdown-body h1,
+[data-theme='dark'] .markdown-body h2,
+[data-theme='dark'] .markdown-body h3,
+[data-theme='dark'] .markdown-body h4,
+[data-theme='dark'] .markdown-body h5,
+[data-theme='dark'] .markdown-body h6 {
+  color: #e8e8f0;
+}
+
+[data-theme='dark'] .markdown-body code {
+  background: #2a2a38;
+  color: #ffb3cd;
+}
+
+[data-theme='dark'] .markdown-body th,
+[data-theme='dark'] .markdown-body td {
+  border-color: #3a3a4a;
+}
+
+[data-theme='dark'] .markdown-body table tr:nth-child(even) {
+  background: #1c1c28;
+}
+
+[data-theme='dark'] .markdown-body blockquote {
+  background: #2a2a38;
+}

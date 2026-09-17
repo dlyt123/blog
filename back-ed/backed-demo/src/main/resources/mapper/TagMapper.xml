@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.TagMapper">
+
+    <!-- 文章数只统计「已发布且未删除」的文章，避免把草稿也算进去导致数量与列表对不上 -->
+    <select id="list" resultType="Tag">
+        SELECT t.*, COUNT(p.id) AS post_count
+        FROM tag t
+        LEFT JOIN post_tag pt ON pt.tag_id = t.id
+        LEFT JOIN post p ON p.id = pt.post_id AND p.status = 1 AND p.deleted = 0
+        GROUP BY t.id
+        ORDER BY post_count DESC, t.id ASC
+    </select>
+
+    <select id="findById" resultType="Tag">
+        SELECT * FROM tag WHERE id = #{id}
+    </select>
+
+    <select id="listByPostId" resultType="Tag">
+        SELECT t.* FROM tag t
+        JOIN post_tag pt ON pt.tag_id = t.id
+        WHERE pt.post_id = #{postId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tag (name, slug) VALUES (#{name}, #{slug})
+    </insert>
+
+    <update id="update">
+        UPDATE tag
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="slug != null">slug = #{slug},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM tag WHERE id = #{id}
+    </delete>
+
+</mapper>

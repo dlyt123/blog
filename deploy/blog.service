@@ -1,0 +1,49 @@
+# ================================================================
+# 个人博客网站 · 后端 systemd 服务
+#
+# 用法：
+#   sudo cp blog.service /etc/systemd/system/blog.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now blog
+#   sudo systemctl status blog
+#
+# 作用：开机自启 + 崩溃自动拉起 + 统一日志入口
+# ================================================================
+
+[Unit]
+Description=Personal Blog Backend (Spring Boot)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=blog
+Group=blog
+WorkingDirectory=/opt/blog/app
+
+# ---- 敏感配置用环境变量注入（改完记得 systemctl daemon-reload）----
+# TODO 换成你自己的随机长串，生成方式：
+#   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+Environment="BLOG_JWT_SECRET=CHANGE_ME_换成你的随机密钥"
+Environment="DB_USERNAME=blog_app"
+Environment="DB_PASSWORD=CHANGE_ME_换成数据库密码"
+# 部署在 Nginx 后面必须为 true，否则拿到的是代理 IP
+Environment="BLOG_TRUST_PROXY=true"
+
+ExecStart=/usr/bin/java -Xms256m -Xmx512m \
+  -jar /opt/blog/app/blog.jar \
+  --server.port=8080 \
+  --blog.upload.dir=/opt/blog/uploads/ \
+  --logging.file.name=/opt/blog/logs/blog.log
+
+# 崩溃自动拉起（正常 systemctl stop 不会触发）
+Restart=on-failure
+RestartSec=5
+
+# 日志交给 journald，用 journalctl -u blog -f 查看
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=blog
+
+[Install]
+WantedBy=multi-user.target

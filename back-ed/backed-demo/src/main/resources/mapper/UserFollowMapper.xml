@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.UserFollowMapper">
+
+    <!-- INSERT IGNORE：重复关注同一个人不会报错（表上有唯一索引） -->
+    <insert id="insert">
+        INSERT IGNORE INTO user_follow (follower_id, followee_id)
+        VALUES (#{followerId}, #{followeeId})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM user_follow
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+    </delete>
+
+    <!-- 注销账号：他关注的人 + 关注他的人，两个方向都清掉 -->
+    <delete id="deleteByUser">
+        DELETE FROM user_follow WHERE follower_id = #{userId} OR followee_id = #{userId}
+    </delete>
+
+    <select id="exists" resultType="int">
+        SELECT COUNT(*) FROM user_follow
+        WHERE follower_id = #{followerId} AND followee_id = #{followeeId}
+    </select>
+
+    <select id="countFollowers" resultType="long">
+        SELECT COUNT(*) FROM user_follow WHERE followee_id = #{userId}
+    </select>
+
+    <select id="countFollowing" resultType="long">
+        SELECT COUNT(*) FROM user_follow WHERE follower_id = #{userId}
+    </select>
+
+    <select id="listFollowingIds" resultType="long">
+        SELECT followee_id FROM user_follow WHERE follower_id = #{userId} ORDER BY id DESC
+    </select>
+
+</mapper>

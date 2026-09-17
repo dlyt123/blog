@@ -1,0 +1,356 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.PostMapper">
+
+    <resultMap id="postMap" type="Post">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="summary" column="summary"/>
+        <result property="content" column="content"/>
+        <result property="cover" column="cover"/>
+        <result property="categoryId" column="category_id"/>
+        <result property="seriesId" column="series_id"/>
+        <result property="authorId" column="author_id"/>
+        <result property="authorName" column="author_name"/>
+        <result property="authorAvatar" column="author_avatar"/>
+        <result property="status" column="status"/>
+        <result property="pinned" column="pinned"/>
+        <result property="recommended" column="recommended"/>
+        <result property="views" column="views"/>
+        <result property="likes" column="likes"/>
+        <result property="publishTime" column="publish_time"/>
+        <result property="scheduledAt" column="scheduled_at"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="deleted" column="deleted"/>
+        <result property="categoryName" column="category_name"/>
+    </resultMap>
+
+    <!-- ===== 前台列表（已发布，支持筛选分页） ===== -->
+    <select id="list" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar
+        FROM post p
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.status = 1 AND p.deleted = 0
+        <if test="categoryId != null">AND p.category_id = #{categoryId}</if>
+        <if test="tagId != null">AND EXISTS (SELECT 1 FROM post_tag pt WHERE pt.post_id = p.id AND pt.tag_id = #{tagId})</if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                p.title LIKE CONCAT('%', #{keyword}, '%')
+                OR p.summary LIKE CONCAT('%', #{keyword}, '%')
+                OR p.content LIKE CONCAT('%', #{keyword}, '%')
+                OR EXISTS (SELECT 1 FROM post_tag pt2 JOIN tag t2 ON t2.id = pt2.tag_id
+                           WHERE pt2.post_id = p.id AND t2.name LIKE CONCAT('%', #{keyword}, '%'))
+            )
+        </if>
+        ORDER BY p.pinned DESC,
+        <choose>
+            <when test="orderBy == 'views'">p.views DESC</when>
+            <otherwise>p.publish_time DESC</otherwise>
+        </choose>
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM post p
+        WHERE p.status = 1 AND p.deleted = 0
+        <if test="categoryId != null">AND p.category_id = #{categoryId}</if>
+        <if test="tagId != null">AND EXISTS (SELECT 1 FROM post_tag pt WHERE pt.post_id = p.id AND pt.tag_id = #{tagId})</if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                p.title LIKE CONCAT('%', #{keyword}, '%')
+                OR p.summary LIKE CONCAT('%', #{keyword}, '%')
+                OR p.content LIKE CONCAT('%', #{keyword}, '%')
+                OR EXISTS (SELECT 1 FROM post_tag pt2 JOIN tag t2 ON t2.id = pt2.tag_id
+                           WHERE pt2.post_id = p.id AND t2.name LIKE CONCAT('%', #{keyword}, '%'))
+            )
+        </if>
+    </select>
+
+    <!-- ===== 文章详情 ===== -->
+    <select id="findById" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar
+        FROM post p
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.id = #{id} AND p.deleted = 0
+    </select>
+
+    <update id="incrementViews">
+        UPDATE post SET views = views + 1 WHERE id = #{id}
+    </update>
+
+    <update id="incrementLikes">
+        UPDATE post SET likes = likes + 1 WHERE id = #{id}
+    </update>
+
+    <update id="decrementLikes">
+        UPDATE post SET likes = GREATEST(likes - 1, 0) WHERE id = #{id}
+    </update>
+
+    <select id="findPrev" resultMap="postMap">
+        SELECT id, title FROM post
+        WHERE status = 1 AND deleted = 0 AND id &lt; #{id}
+        ORDER BY id DESC LIMIT 1
+    </select>
+
+    <select id="findNext" resultMap="postMap">
+        SELECT id, title FROM post
+        WHERE status = 1 AND deleted = 0 AND id &gt; #{id}
+        ORDER BY id ASC LIMIT 1
+    </select>
+
+    <select id="listArchives" resultMap="postMap">
+        SELECT id, title, publish_time, create_time FROM post
+        WHERE status = 1 AND deleted = 0
+        ORDER BY publish_time DESC
+    </select>
+
+    <!-- 注意：RSS / 站点地图会用到 create_time / update_time，这里必须一并查出，否则会空指针 -->
+    <select id="listPopular" resultMap="postMap">
+        SELECT id, title, views, likes, publish_time, create_time, update_time FROM post
+        WHERE status = 1 AND deleted = 0
+        ORDER BY views DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="sumViews" resultType="long">
+        SELECT COALESCE(SUM(views), 0) FROM post WHERE deleted = 0
+    </select>
+
+    <!--
+      相关推荐：命中「共同标签」或「同分类」的文章。
+      ORDER BY same_tag_count DESC（标签重合越多越相关）→ views DESC（同分时用热度兜底）。
+      用 EXISTS 而不是 JOIN，避免一篇文章命中多个标签时出现重复行（那就要 DISTINCT 了）。
+    -->
+    <select id="listRelated" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar,
+               (SELECT COUNT(*) FROM post_tag pt2
+                 WHERE pt2.post_id = p.id
+                   AND pt2.tag_id IN (SELECT tag_id FROM post_tag WHERE post_id = #{id})
+               ) AS same_tag_count
+        FROM post p
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.status = 1 AND p.deleted = 0 AND p.id &lt;&gt; #{id}
+          AND (
+              EXISTS (SELECT 1 FROM post_tag pt
+                       WHERE pt.post_id = p.id
+                         AND pt.tag_id IN (SELECT tag_id FROM post_tag WHERE post_id = #{id}))
+              OR p.category_id = (SELECT category_id FROM post WHERE id = #{id})
+          )
+        ORDER BY same_tag_count DESC, p.views DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listByFollowees" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar
+        FROM post p
+        JOIN user_follow f ON f.followee_id = p.author_id AND f.follower_id = #{followerId}
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.status = 1 AND p.deleted = 0
+        ORDER BY p.publish_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByFollowees" resultType="long">
+        SELECT COUNT(*) FROM post p
+        JOIN user_follow f ON f.followee_id = p.author_id AND f.follower_id = #{followerId}
+        WHERE p.status = 1 AND p.deleted = 0
+    </select>
+
+    <select id="listBySeries" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar
+        FROM post p
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.series_id = #{seriesId} AND p.status = 1 AND p.deleted = 0
+        ORDER BY p.publish_time ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countBySeries" resultType="long">
+        SELECT COUNT(*) FROM post
+        WHERE series_id = #{seriesId} AND status = 1 AND deleted = 0
+    </select>
+
+    <select id="listAllForExport" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar
+        FROM post p
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.deleted = 0
+        ORDER BY p.id
+    </select>
+
+    <!-- ===== 后台列表（含草稿，可按作者过滤） ===== -->
+    <select id="listAdmin" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar
+        FROM post p
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.deleted = 0
+        <if test="status != null">AND p.status = #{status}</if>
+        <if test="keyword != null and keyword != ''">
+            AND p.title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="authorId != null">AND p.author_id = #{authorId}</if>
+        ORDER BY p.id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countAdmin" resultType="long">
+        SELECT COUNT(*)
+        FROM post p
+        WHERE p.deleted = 0
+        <if test="status != null">AND p.status = #{status}</if>
+        <if test="keyword != null and keyword != ''">
+            AND p.title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="authorId != null">AND p.author_id = #{authorId}</if>
+    </select>
+
+    <!-- ===== 后台写操作 ===== -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post (title, summary, content, cover, category_id, author_id, series_id, status, pinned, recommended, publish_time, scheduled_at)
+        VALUES (#{title}, #{summary}, #{content}, #{cover}, #{categoryId}, #{authorId}, #{seriesId}, #{status}, #{pinned}, #{recommended}, #{publishTime}, #{scheduledAt})
+    </insert>
+
+    <update id="update">
+        UPDATE post
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="summary != null">summary = #{summary},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="cover != null">cover = #{cover},</if>
+            <if test="categoryId != null">category_id = #{categoryId},</if>
+            <if test="seriesId != null">series_id = #{seriesId},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="pinned != null">pinned = #{pinned},</if>
+            <if test="recommended != null">recommended = #{recommended},</if>
+            <if test="publishTime != null">publish_time = #{publishTime},</if>
+            scheduled_at = #{scheduledAt},
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 定时发布：把到期的草稿转为已发布 -->
+    <update id="publishScheduled">
+        UPDATE post
+        SET status = 1, publish_time = scheduled_at, scheduled_at = NULL
+        WHERE status = 0 AND deleted = 0
+          AND scheduled_at IS NOT NULL
+          AND scheduled_at &lt;= #{now}
+    </update>
+
+    <!-- 注销账号：文章保留，作者改为匿名（author_id 置空） -->
+    <update id="anonymizeAuthor">
+        UPDATE post SET author_id = NULL WHERE author_id = #{authorId}
+    </update>
+
+    <update id="softDelete">
+        UPDATE post SET deleted = 1 WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE post SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <update id="updatePinned">
+        UPDATE post SET pinned = #{pinned} WHERE id = #{id}
+    </update>
+
+    <update id="updateRecommended">
+        UPDATE post SET recommended = #{recommended} WHERE id = #{id}
+    </update>
+
+    <update id="batchUpdateStatus">
+        UPDATE post SET status = #{status}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="batchSoftDelete">
+        UPDATE post SET deleted = 1
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <update id="batchUpdateCategory">
+        UPDATE post SET category_id = #{categoryId}
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </update>
+
+    <!-- ===== 标签关联 ===== -->
+    <insert id="insertTag">
+        INSERT INTO post_tag (post_id, tag_id) VALUES (#{postId}, #{tagId})
+    </insert>
+
+    <delete id="deleteTags">
+        DELETE FROM post_tag WHERE post_id = #{postId}
+    </delete>
+
+    <!-- ===== 回收站 ===== -->
+    <select id="listTrash" resultMap="postMap">
+        SELECT p.*, c.name AS category_name,
+               COALESCE(u.nickname, u.username) AS author_name,
+               u.avatar AS author_avatar
+        FROM post p
+        LEFT JOIN category c ON c.id = p.category_id
+        LEFT JOIN `user` u ON u.id = p.author_id
+        WHERE p.deleted = 1
+        <if test="keyword != null and keyword != ''">
+            AND p.title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY p.id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countTrash" resultType="long">
+        SELECT COUNT(*)
+        FROM post p
+        WHERE p.deleted = 1
+        <if test="keyword != null and keyword != ''">
+            AND p.title LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+    </select>
+
+    <update id="restore">
+        UPDATE post SET deleted = 0 WHERE id = #{id}
+    </update>
+
+    <delete id="hardDelete">
+        DELETE FROM post WHERE id = #{id}
+    </delete>
+
+    <delete id="hardDeleteLikes">
+        DELETE FROM post_like WHERE post_id = #{id}
+    </delete>
+
+    <delete id="hardDeleteFavorites">
+        DELETE FROM post_favorite WHERE post_id = #{id}
+    </delete>
+
+    <delete id="hardDeleteComments">
+        DELETE FROM comment WHERE post_id = #{id}
+    </delete>
+
+</mapper>

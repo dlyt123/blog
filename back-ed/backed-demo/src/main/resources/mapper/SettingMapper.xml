@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.SettingMapper">
+
+    <select id="list" resultType="Setting">
+        SELECT * FROM setting
+    </select>
+
+    <select id="findByKey" resultType="Setting">
+        SELECT * FROM setting WHERE setting_key = #{key}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO setting (setting_key, setting_value)
+        VALUES (#{settingKey}, #{settingValue})
+    </insert>
+
+    <update id="update">
+        UPDATE setting SET setting_value = #{settingValue}
+        WHERE setting_key = #{settingKey}
+    </update>
+
+</mapper>

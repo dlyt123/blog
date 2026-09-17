@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.SubscribeMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO subscribe (email, token) VALUES (#{email}, #{token})
+    </insert>
+
+    <select id="list" resultType="Subscribe">
+        SELECT * FROM subscribe ORDER BY id DESC
+    </select>
+
+    <!-- 发信只发给未退订的 -->
+    <select id="listActive" resultType="Subscribe">
+        SELECT * FROM subscribe WHERE unsubscribed = 0 OR unsubscribed IS NULL ORDER BY id DESC
+    </select>
+
+    <select id="findByToken" resultType="Subscribe">
+        SELECT * FROM subscribe WHERE token = #{token} LIMIT 1
+    </select>
+
+    <update id="unsubscribe">
+        UPDATE subscribe SET unsubscribed = 1 WHERE token = #{token}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM subscribe WHERE id = #{id}
+    </delete>
+
+</mapper>

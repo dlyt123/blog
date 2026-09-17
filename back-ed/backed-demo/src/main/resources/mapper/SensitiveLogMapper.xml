@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.SensitiveLogMapper">
+
+    <insert id="insert">
+        INSERT INTO sensitive_log (word, scene, content) VALUES (#{word}, #{scene}, #{content})
+    </insert>
+
+    <select id="list" resultType="SensitiveLog">
+        SELECT id, word, scene, content, create_time
+        FROM sensitive_log ORDER BY id DESC LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM sensitive_log
+    </select>
+
+    <delete id="clear">
+        DELETE FROM sensitive_log
+    </delete>
+</mapper>

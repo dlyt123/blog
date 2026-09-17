@@ -1,0 +1,262 @@
+-- =====================================================
+-- 个人博客网站 数据库初始化脚本
+-- 数据库: blog  字符集: utf8mb4
+-- 说明：含建表 + 测试数据。测试数据使用 INSERT IGNORE，可重复执行。
+--      不含用户数据，账号请在前台「注册」页面自行注册。
+-- =====================================================
+
+CREATE DATABASE IF NOT EXISTS `blog` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `blog`;
+
+-- 用户表
+CREATE TABLE IF NOT EXISTS `user` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `username`    VARCHAR(50)  NOT NULL,
+  `password`    VARCHAR(100) NOT NULL,
+  `nickname`    VARCHAR(50)  DEFAULT NULL,
+  `avatar`      VARCHAR(255) DEFAULT NULL,
+  `email`       VARCHAR(100) DEFAULT NULL,
+  `role`        VARCHAR(20)  DEFAULT 'USER' COMMENT 'USER普通用户(博主) / ADMIN管理员',
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 分类表
+CREATE TABLE IF NOT EXISTS `category` (
+  `id`          BIGINT      NOT NULL AUTO_INCREMENT,
+  `name`        VARCHAR(50) NOT NULL,
+  `slug`        VARCHAR(50) DEFAULT NULL,
+  `parent_id`   BIGINT      DEFAULT 0,
+  `sort`        INT         DEFAULT 0,
+  `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 标签表
+CREATE TABLE IF NOT EXISTS `tag` (
+  `id`          BIGINT      NOT NULL AUTO_INCREMENT,
+  `name`        VARCHAR(50) NOT NULL,
+  `slug`        VARCHAR(50) DEFAULT NULL,
+  `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 文章表
+CREATE TABLE IF NOT EXISTS `post` (
+  `id`           BIGINT       NOT NULL AUTO_INCREMENT,
+  `title`        VARCHAR(200) NOT NULL,
+  `summary`      VARCHAR(500) DEFAULT NULL,
+  `content`      LONGTEXT,
+  `cover`        VARCHAR(255) DEFAULT NULL,
+  `category_id`  BIGINT       DEFAULT NULL,
+  `author_id`    BIGINT       DEFAULT NULL COMMENT '作者ID（关联user表）',
+  `status`       TINYINT      DEFAULT 1 COMMENT '0草稿 1已发布',
+  `pinned`       TINYINT      DEFAULT 0 COMMENT '是否置顶',
+  `recommended`  TINYINT      DEFAULT 0 COMMENT '是否推荐',
+  `views`        INT          DEFAULT 0,
+  `likes`        INT          DEFAULT 0,
+  `publish_time` DATETIME     DEFAULT NULL,
+  `create_time`  DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  `update_time`  DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted`      TINYINT      DEFAULT 0 COMMENT '软删除标记',
+  PRIMARY KEY (`id`),
+  KEY `idx_category` (`category_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_publish` (`publish_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 文章-标签关联表
+CREATE TABLE IF NOT EXISTS `post_tag` (
+  `post_id` BIGINT NOT NULL,
+  `tag_id`  BIGINT NOT NULL,
+  PRIMARY KEY (`post_id`, `tag_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 评论表
+CREATE TABLE IF NOT EXISTS `comment` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `post_id`     BIGINT       NOT NULL,
+  `parent_id`   BIGINT       DEFAULT 0,
+  `user_id`     BIGINT       DEFAULT NULL COMMENT '评论者用户ID（关联user表，昵称头像实时取用户表）',
+  `content`     TEXT         NOT NULL,
+  `nickname`    VARCHAR(50)  DEFAULT NULL COMMENT '冗余昵称（用户已删除时兜底）',
+  `email`       VARCHAR(100) DEFAULT NULL,
+  `website`     VARCHAR(200) DEFAULT NULL,
+  `avatar`      VARCHAR(255) DEFAULT NULL COMMENT '冗余头像（用户已删除时兜底）',
+  `status`      TINYINT      DEFAULT 1 COMMENT '0待审核 1通过 2驳回（默认直接通过，免审核）',
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_post` (`post_id`),
+  KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 友链表
+CREATE TABLE IF NOT EXISTS `link` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `name`        VARCHAR(100) NOT NULL,
+  `url`         VARCHAR(255) NOT NULL,
+  `group_name`  VARCHAR(50)  DEFAULT '默认分组',
+  `sort`        INT          DEFAULT 0,
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 媒体表
+CREATE TABLE IF NOT EXISTS `media` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `filename`    VARCHAR(200) DEFAULT NULL,
+  `url`         VARCHAR(255) NOT NULL,
+  `type`        VARCHAR(50)  DEFAULT NULL,
+  `size`        BIGINT       DEFAULT NULL,
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 站点设置表
+CREATE TABLE IF NOT EXISTS `setting` (
+  `id`            BIGINT       NOT NULL AUTO_INCREMENT,
+  `setting_key`   VARCHAR(100) NOT NULL,
+  `setting_value` TEXT,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_key` (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 订阅表
+CREATE TABLE IF NOT EXISTS `subscribe` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `email`       VARCHAR(100) NOT NULL,
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 点赞记录表（一个用户对一篇文章只能点一次）
+CREATE TABLE IF NOT EXISTS `post_like` (
+  `id`          BIGINT   NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT   NOT NULL,
+  `post_id`     BIGINT   NOT NULL,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_post` (`user_id`, `post_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 收藏记录表（一个用户对一篇文章只能收藏一次）
+CREATE TABLE IF NOT EXISTS `post_favorite` (
+  `id`          BIGINT   NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT   NOT NULL,
+  `post_id`     BIGINT   NOT NULL,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_post` (`user_id`, `post_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 访客留痕表（记录每一次页面访问，包含未登录游客；仅管理员可查看）
+CREATE TABLE IF NOT EXISTS `visit_log` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT       DEFAULT NULL COMMENT '访问者用户ID；为空表示未登录游客',
+  `ip`          VARCHAR(64)  DEFAULT NULL,
+  `path`        VARCHAR(255) DEFAULT NULL COMMENT '访问的前端路由，如 /posts/1',
+  `referer`     VARCHAR(500) DEFAULT NULL COMMENT '来源页面',
+  `user_agent`  VARCHAR(500) DEFAULT NULL,
+  `device`      VARCHAR(100) DEFAULT NULL COMMENT '浏览器 / 系统',
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_create_time` (`create_time`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='访客访问留痕，仅管理员可查看';
+
+-- =====================================================
+-- 测试数据（不含用户；账号请在「注册」页自行注册）
+-- ⚠️ 顺序要求：程序**不会**自动创建管理员，请先执行 tools/create-admin.sql 建好管理员
+--    （它会拿到 id = 1），再执行本脚本，这样下面示例文章的 author_id = 1 才能对上。
+--    如果管理员不是第一个用户，用这条修正示例文章的作者：
+--    UPDATE `post` SET `author_id` = (SELECT id FROM `user` WHERE `username` = 'admin')
+--    WHERE `id` BETWEEN 1 AND 12;
+-- =====================================================
+
+-- 分类
+INSERT IGNORE INTO `category` (`id`, `name`, `slug`, `sort`) VALUES
+(1, '前端', 'frontend', 1),
+(2, '后端', 'backend', 2),
+(3, '随笔', 'life', 3),
+(4, '数据库', 'database', 4),
+(5, '运维部署', 'devops', 5),
+(6, '工具推荐', 'tools', 6),
+(7, '生活记录', 'daily', 7);
+
+-- 标签
+INSERT IGNORE INTO `tag` (`id`, `name`, `slug`) VALUES
+(1, 'Vue', 'vue'),
+(2, 'Spring Boot', 'spring-boot'),
+(3, '二次元', 'anime'),
+(4, 'MySQL', 'mysql'),
+(5, 'Redis', 'redis'),
+(6, 'Docker', 'docker'),
+(7, 'JavaScript', 'javascript'),
+(8, 'CSS', 'css'),
+(9, 'Nginx', 'nginx'),
+(10, '效率工具', 'productivity');
+
+-- 站点设置
+INSERT IGNORE INTO `setting` (`setting_key`, `setting_value`) VALUES
+('siteName', '我的博客'),
+('slogan', '记录代码与热爱'),
+('description', '一个记录技术与日常的个人博客'),
+('logo', ''),
+('icp', ''),
+('keywords', '博客,Vue,Spring Boot,MySQL'),
+('pageSize', '10');
+
+-- 文章
+-- 说明：以下为站点初始文章（真实可读的技术内容，不是占位符）。
+--       views 为阅读量计数器，保留了一些初始值让页面不至于太空；
+--       likes 统一为 0，与 post_like 表保持一致（真实点赞会累加）。
+INSERT IGNORE INTO `post` (`id`, `title`, `summary`, `content`, `cover`, `category_id`, `author_id`, `status`, `pinned`, `recommended`, `views`, `likes`, `publish_time`) VALUES
+(1, '欢迎来到我的博客', '这个博客用到的技术栈、搭建思路，以及我打算在这里写些什么。', '# 欢迎来到我的博客\n\n你好，欢迎来到我的博客。\n\n这里主要记录我在学习和工作中踩过的坑、想明白的道理，以及一些没什么用但挺好玩的东西。\n\n## 为什么自己搭一个博客\n\n写笔记的地方其实很多，但自己搭有一个别处给不了的好处：**内容的结构由我决定**。\n\n- 想加个「归档」就加，不用等平台开放功能\n- 想改配色就改，不用忍受广告和推荐流\n- 文章是自己的，不会因为平台关停而消失\n\n顺带把前后端整套流程走一遍，比看十篇教程都管用。\n\n## 技术栈\n\n| 层次 | 选型 | 说明 |\n| --- | --- | --- |\n| 前端 | Vue 3 + Vite | 组合式 API，构建快 |\n| UI | Element Plus + 手写样式 | 后台用组件库，前台自己写 |\n| 状态 | Pinia | 用户登录态、站点设置 |\n| 后端 | Spring Boot + MyBatis | 分层清晰，SQL 可控 |\n| 数据库 | MySQL 8 | 经典组合 |\n| 鉴权 | JWT | 无状态，方便前后端分离 |\n\n## 一个最小的接口长什么样\n\n```java\n@GetMapping("/api/posts")\npublic Result<PageResult<Post>> list(\n        @RequestParam(defaultValue = "1") Integer page,\n        @RequestParam(defaultValue = "10") Integer pageSize) {\n    return Result.success(postService.list(page, pageSize));\n}\n```\n\n统一返回 `Result`，前端就能用一个拦截器处理所有响应。\n\n## 接下来写什么\n\n- Vue 与前端工程化的实践笔记\n- Java 后端的常见套路与踩坑\n- MySQL、Redis 这类基础设施的使用心得\n- 偶尔夹带一点生活记录\n\n如果某篇文章帮到了你，欢迎在评论区说一声。', NULL, 3, 1, 1, 1, 1, 128, 0, NOW()),
+
+(2, 'Vue 3 组合式 API 入门笔记', 'setup 语法糖、ref 与 reactive 的区别、computed 和 watch 该怎么选，附完整示例。', '# Vue 3 组合式 API 入门笔记\n\n## 为什么要有组合式 API\n\n选项式 API 把代码按「data / methods / computed」切块，一个功能往往散落在四五个地方。功能一多，读代码就得来回跳。\n\n组合式 API 换了个切法：**按功能组织，不按类型组织**。\n\n```vue\n<script setup>\nimport { ref, computed, watch, onMounted } from "vue"\n\n// 搜索功能相关的都放在一起\nconst keyword = ref("")\nconst list = ref([])\nconst filtered = computed(() =>\n  list.value.filter((item) => item.title.includes(keyword.value))\n)\n\nwatch(keyword, (val) => {\n  console.log("关键词变了：", val)\n})\n\nonMounted(() => console.log("组件挂载完成"))\n</script>\n```\n\n## ref 还是 reactive\n\n这是新手最常纠结的问题。结论很简单：**优先用 ref**。\n\n| | ref | reactive |\n| --- | --- | --- |\n| 适用类型 | 任意类型 | 只能是对象或数组 |\n| 模板里取值 | 自动解包，直接写 `count` | 直接写 `user.name` |\n| 脚本里取值 | 要写 `.value` | 直接写 |\n| 重新赋值 | 可以整体替换 | 不能整体替换，会丢响应式 |\n\n```js\nconst count = ref(0)\ncount.value++          // 脚本里要 .value\n\nconst user = reactive({ name: "小明" })\nuser.name = "小红"      // 直接改\n```\n\n`reactive` 有个坑：解构之后就失去响应式了。\n\n```js\nconst { name } = user   // 这样拿到的 name 是死的\n```\n\n真要解构，用 `toRefs`：\n\n```js\nconst { name } = toRefs(user)\n```\n\n## computed 和 watch 怎么选\n\n一句话：**要一个值用 computed，要做一件事用 watch**。\n\n```js\n// 要一个派生值 —— computed\nconst double = computed(() => count.value * 2)\n\n// 要触发副作用（请求接口、打日志、存 localStorage）—— watch\nwatch(count, async (val) => {\n  await saveToServer(val)\n})\n```\n\n`computed` 有缓存，依赖不变就不会重算；`watch` 每次变化都执行。\n\n## 生命周期\n\n组合式 API 里钩子都变成 `onXxx` 函数，在 `setup` 里调用：\n\n| 选项式 | 组合式 |\n| --- | --- |\n| created | 直接写在 setup 里 |\n| mounted | onMounted |\n| updated | onUpdated |\n| unmounted | onUnmounted |\n\n## 小结\n\n- 按功能组织代码，一个功能的 ref、computed、watch 放一起\n- 默认用 `ref`，`reactive` 只在确实需要一个对象时用\n- 派生值用 `computed`，副作用用 `watch`', NULL, 1, 1, 1, 0, 1, 320, 0, NOW()),
+
+(3, 'Spring Boot 统一响应与全局异常处理', '用 Result 统一返回结构，用 @RestControllerAdvice 集中处理异常，让 Controller 干净起来。', '# Spring Boot 统一响应与全局异常处理\n\n## 没有统一响应时会怎样\n\n每个接口各写各的，前端就得写一堆判断：\n\n```java\n// 接口 A 返回 { "data": ... }\n// 接口 B 返回 { "success": true, "result": ... }\n// 接口 C 报错时返回纯文本\n```\n\n前端同学会来打你的。\n\n## 统一响应结构\n\n```java\n@Data\npublic class Result<T> {\n    private int code;\n    private String message;\n    private T data;\n\n    public static <T> Result<T> success(T data) {\n        return build(200, "success", data);\n    }\n\n    public static <T> Result<T> error(int code, String message) {\n        return build(code, message, null);\n    }\n}\n```\n\n约定：`code == 200` 表示业务成功，其它都是失败。\n\n## 业务异常\n\n不要让 Service 里到处 `return Result.error(...)`，那会污染业务代码。抛异常更好：\n\n```java\npublic class BusinessException extends RuntimeException {\n    private final int code;\n\n    public BusinessException(int code, String message) {\n        super(message);\n        this.code = code;\n    }\n}\n```\n\nService 里直接抛：\n\n```java\nif (post == null) {\n    throw new BusinessException(404, "文章不存在");\n}\n```\n\n## 全局异常处理\n\n```java\n@RestControllerAdvice\npublic class GlobalExceptionHandler {\n\n    private static final Logger log =\n            LoggerFactory.getLogger(GlobalExceptionHandler.class);\n\n    @ExceptionHandler(BusinessException.class)\n    public Result<Void> handleBusiness(BusinessException e) {\n        // 业务异常的 message 是写给用户看的，原样返回\n        return Result.error(e.getCode(), e.getMessage());\n    }\n\n    @ExceptionHandler(Exception.class)\n    public Result<Void> handleException(Exception e) {\n        // 其它异常只记日志，不要把 SQL 报错、类名、路径抛给客户端\n        log.error("未处理异常", e);\n        return Result.error(500, "服务器开小差了，请稍后重试");\n    }\n}\n```\n\n## 一个容易忽略的坑\n\n`@ExceptionHandler(Exception.class)` 会**吃掉所有异常**，包括 Spring 自己的 404 和 405。结果就是你访问一个不存在的地址，返回的是 500 而不是 404。\n\n补上专门的处理器即可：\n\n```java\n@ExceptionHandler(NoResourceFoundException.class)\npublic Result<Void> handleNotFound(NoResourceFoundException e) {\n    return Result.error(404, "资源不存在");\n}\n```\n\n## 前端怎么配合\n\n配合 axios 响应拦截器，业务代码里就再也不用判断 `code` 了：\n\n```js\nhttp.interceptors.response.use((res) => {\n  const data = res.data\n  if (data.code !== 200) {\n    ElMessage.error(data.message || "请求失败")\n    return Promise.reject(data)\n  }\n  return data.data     // 直接把 data 抛出去\n})\n```\n\n这样调用方拿到的是 `data`，而不是整个响应对象。', NULL, 2, 1, 1, 0, 1, 256, 0, NOW()),
+
+(4, 'MySQL 索引优化实战笔记', '从 EXPLAIN 到最左前缀，用真实例子讲清楚索引为什么没走上。', '# MySQL 索引优化实战笔记\n\n## 先看执行计划\n\n优化索引的第一步永远是 `EXPLAIN`：\n\n```sql\nEXPLAIN SELECT id, title FROM post WHERE author_id = 1 ORDER BY id DESC LIMIT 10;\n```\n\n重点看这几列：\n\n| 列 | 关注什么 |\n| --- | --- |\n| type | 至少要到 range，出现 ALL 说明全表扫描 |\n| key | 实际用了哪个索引，NULL 就是没用上 |\n| rows | 预估扫描行数，越小越好 |\n| Extra | 出现 Using filesort、Using temporary 要警惕 |\n\n## 最左前缀原则\n\n联合索引 `(a, b, c)` 相当于建了三个索引：`(a)`、`(a,b)`、`(a,b,c)`。\n\n```sql\n-- 能命中\nWHERE a = 1\nWHERE a = 1 AND b = 2\nWHERE a = 1 AND b = 2 AND c = 3\n\n-- 命中不了\nWHERE b = 2\nWHERE b = 2 AND c = 3\n```\n\n注意：`WHERE a = 1 AND c = 3` 只会用到 `a` 这一列，`c` 用不上。\n\n## 索引失效的几种常见情况\n\n**1. 在索引列上做运算或调用函数**\n\n```sql\n-- 失效\nWHERE DATE(create_time) = "2026-09-01"\n\n-- 改成范围查询就能用上\nWHERE create_time >= "2026-09-01 00:00:00"\n  AND create_time <  "2026-09-02 00:00:00"\n```\n\n**2. 以通配符开头的 LIKE**\n\n```sql\nWHERE title LIKE "%Vue%"    -- 失效，只能全表扫\nWHERE title LIKE "Vue%"      -- 可以走索引\n```\n\n前缀匹配走索引，中间匹配走不了。\n\n**3. 隐式类型转换**\n\n```sql\n-- phone 是 varchar，传入数字会触发类型转换\nWHERE phone = 13800000000       -- 失效\nWHERE phone = "13800000000"     -- 正常\n```\n\n**4. OR 连接了没索引的列**\n\n```sql\nWHERE author_id = 1 OR title LIKE "%x%"\n```\n\n只要有一边没索引，整个查询就可能退化成全表扫描。\n\n## 覆盖索引\n\n如果查询需要的列全都在索引里，就不用回表了：\n\n```sql\n-- 联合索引 (author_id, status, publish_time)\nSELECT author_id, status, publish_time\nFROM post WHERE author_id = 1;\n```\n\n`EXPLAIN` 的 Extra 里出现 `Using index` 就是命中覆盖索引。\n\n## 区分度很重要\n\n只有几个取值的列（比如 status 只有 0 和 1）单独建索引意义不大，优化器可能直接放弃。这类列通常作为联合索引的后续列才划算。\n\n## 小结\n\n1. 先 `EXPLAIN`，别凭感觉加索引\n2. 联合索引记住最左前缀，把区分度高的列放前面\n3. 别在索引列上做运算，别用前缀通配符\n4. 索引不是越多越好，写操作也要维护索引', NULL, 4, 1, 1, 0, 1, 410, 0, NOW()),
+
+(5, 'Redis 缓存三大问题：穿透、击穿、雪崩', '三个问题的成因、区别和对应方案，附带伪代码。', '# Redis 缓存三大问题\n\n缓存用得好能扛住很高的并发，但用不好会出现三类经典问题。名字很像，成因完全不同。\n\n## 缓存穿透\n\n**现象**：查询一个**数据库里根本不存在**的数据。缓存里没有，数据库里也没有，于是每次请求都打到数据库。\n\n**危害**：如果有人拿随机 ID 疯狂请求，数据库就被无效查询压垮了。\n\n**方案**：\n\n1. **缓存空值**：查不到也往缓存里写一个空标记，设个较短的过期时间\n\n```java\nString cache = redis.get(key);\nif (cache == null) {\n    Post post = postMapper.findById(id);\n    if (post == null) {\n        redis.setex(key, 60, "NULL");   // 空值也缓存，60 秒\n        return null;\n    }\n    redis.setex(key, 600, toJson(post));\n    return post;\n}\n```\n\n2. **布隆过滤器**：把所有存在的 ID 放进过滤器，请求先过一遍，不存在直接返回。\n\n## 缓存击穿\n\n**现象**：某个**热点 key 刚好过期**，大量请求同时涌进来，全部落到数据库。\n\n**和穿透的区别**：穿透查的是不存在的数据，击穿查的是存在但缓存刚失效的数据。\n\n**方案**：\n\n1. **互斥锁重建**：只让一个请求去查数据库，其它请求等一下\n\n```java\nString value = redis.get(key);\nif (value == null) {\n    if (redis.setnx("lock:" + key, "1", 10)) {   // 抢到锁\n        try {\n            value = loadFromDb(key);\n            redis.setex(key, 600, value);\n        } finally {\n            redis.del("lock:" + key);\n        }\n    } else {\n        Thread.sleep(50);\n        return get(key);      // 等一下再重试\n    }\n}\n```\n\n2. **热点 key 永不过期**：由后台任务定期更新，避免瞬间失效。\n\n## 缓存雪崩\n\n**现象**：**大量 key 在同一时刻集体过期**，或者 Redis 直接宕机，请求全压到数据库。\n\n**和击穿的区别**：击穿是单个热点 key，雪崩是一大批 key。\n\n**方案**：\n\n1. **过期时间加随机值**\n\n```java\nint expire = 600 + new Random().nextInt(300);   // 600 ~ 900 秒\nredis.setex(key, expire, value);\n```\n\n2. **多级缓存**：本地缓存 + Redis，Redis 挂了还有本地兜底\n3. **限流降级**：数据库前面加限流，宁可拒绝一部分请求也不要拖垮数据库\n4. **高可用**：Redis 做主从 + 哨兵，避免单点故障\n\n## 对比一下\n\n| 问题 | 数据是否存在 | 影响范围 | 核心方案 |\n| --- | --- | --- | --- |\n| 穿透 | 不存在 | 单次请求反复打库 | 缓存空值、布隆过滤器 |\n| 击穿 | 存在 | 单个热点 key | 互斥锁、永不过期 |\n| 雪崩 | 存在 | 大批 key 同时失效 | 随机过期时间、多级缓存 |\n\n## 小结\n\n这三个问题的本质都是**缓存没兜住请求，压力全落到数据库**。实际项目里往往几种方案一起用，再配合限流兜底。', NULL, 4, 1, 1, 0, 1, 298, 0, NOW()),
+
+(6, '用 Docker 部署前后端分离项目的完整流程', '从写 Dockerfile、Nginx 配置到 docker compose 编排，把项目跑起来。', '# 用 Docker 部署前后端分离项目\n\n## 为什么要用 Docker\n\n手动部署最麻烦的是环境：JDK 版本不对、Nginx 配置写错、忘了装某个依赖。Docker 把这些都固化进镜像，换台机器照样跑。\n\n## 后端镜像\n\n先打包：\n\n```bash\nmvn clean package -DskipTests\n```\n\n再写 Dockerfile，放在项目根目录：\n\n```dockerfile\nFROM eclipse-temurin:21-jre\n\nWORKDIR /app\nCOPY target/*.jar app.jar\n\nEXPOSE 8080\nENTRYPOINT ["java", "-jar", "app.jar"]\n```\n\n用 alpine 或 jre 版本就够了，别用完整 JDK，镜像能小一半。\n\n## 前端构建\n\n前端不用单独跑容器，**构建成静态文件交给 Nginx 托管**就行：\n\n```bash\nnpm run build\n```\n\n产物在 `dist/` 目录。\n\n## Nginx 配置\n\n这是最关键的一步，要做三件事：托管静态文件、转发接口、转发上传的图片。\n\n```nginx\nserver {\n    listen 80;\n    server_name example.com;\n\n    root /usr/share/nginx/html;\n    index index.html;\n\n    # 前端路由用 history 模式，找不到文件时回退到 index.html\n    location / {\n        try_files $uri $uri/ /index.html;\n    }\n\n    # 接口转发到后端容器\n    location /api/ {\n        proxy_pass http://backend:8080/api/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n    }\n\n    # 用户上传的图片\n    location /uploads/ {\n        proxy_pass http://backend:8080/uploads/;\n    }\n}\n```\n\n注意 `X-Forwarded-For` 这行：后端要靠它拿到访客真实 IP，否则限流会把所有用户算成同一个人。\n\n## 用 compose 串起来\n\n```yaml\nservices:\n  mysql:\n    image: mysql:8\n    environment:\n      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}\n      MYSQL_DATABASE: blog\n    volumes:\n      - mysql-data:/var/lib/mysql\n\n  backend:\n    build: ./back\n    depends_on:\n      - mysql\n    environment:\n      DB_USERNAME: root\n      DB_PASSWORD: ${DB_PASSWORD}\n      BLOG_JWT_SECRET: ${JWT_SECRET}\n\n  nginx:\n    image: nginx:alpine\n    ports:\n      - "80:80"\n    volumes:\n      - ./dist:/usr/share/nginx/html:ro\n      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro\n    depends_on:\n      - backend\n\nvolumes:\n  mysql-data:\n```\n\n启动：\n\n```bash\ndocker compose up -d\n```\n\n## 踩过的坑\n\n**1. 容器之间不能用 localhost**\n\n后端连数据库要写 `jdbc:mysql://mysql:3306/blog`，`mysql` 是 compose 里的服务名。写 `localhost` 会连到容器自己。\n\n**2. 数据库还没起来，后端就启动了**\n\n`depends_on` 只保证容器启动顺序，不保证 MySQL 已经能接受连接。稳妥做法是后端加重试，或者用 healthcheck。\n\n**3. 上传的图片重启就没了**\n\n上传目录一定要挂 volume，否则容器一重建，用户上传的图片全丢。\n\n**4. 前端刷新 404**\n\nhistory 模式必须配 `try_files $uri $uri/ /index.html`，否则在 `/posts/1` 上按 F5 就是 404。', NULL, 5, 1, 1, 0, 0, 187, 0, NOW()),
+
+(7, 'CSS 渐变配色：做出梦幻的博客主题', '线性、径向、锥形渐变的写法，以及怎么配出柔和又不刺眼的颜色。', '# CSS 渐变配色：做出梦幻的博客主题\n\n## 三种渐变\n\n**线性渐变**：最常见，沿一条线过渡。\n\n```css\nbackground: linear-gradient(135deg, #ffd6e4, #d6f0fb);\n```\n\n`135deg` 是从左上到右下。`to right` 这种写法也可以，但角度更灵活。\n\n**径向渐变**：从中心向外扩散，适合做光晕。\n\n```css\nbackground: radial-gradient(circle at 30% 30%, #ffffff, #ffe3ed);\n```\n\n`at 30% 30%` 把发光点挪到偏左上，比正中间自然。\n\n**锥形渐变**：绕中心旋转，可以做色环、进度环。\n\n```css\nbackground: conic-gradient(from 0deg, #ff6b9d, #7ec8e3, #8fd3c4, #ff6b9d);\n```\n\n## 配色怎么不出错\n\n**1. 主色不要超过两个**\n\n新手常见的问题是颜色太多，页面像打翻了调色盘。挑一个主色、一个辅色就够了，其余用中性色。\n\n```css\n:root {\n  --main: #ff6b9d;        /* 主色：按钮、链接、强调 */\n  --sub: #7ec8e3;         /* 辅色：标签、次级按钮 */\n  --text: #3a3a4a;        /* 正文 */\n  --text-light: #a0a0b0;  /* 说明文字 */\n  --bg: #faf8fb;          /* 背景 */\n}\n```\n\n**2. 渐变两端别都太深**\n\n```css\n/* 太闷 */\nlinear-gradient(135deg, #8b0030, #1a3a5c)\n\n/* 舒服，一端浅一端略深 */\nlinear-gradient(135deg, #ff8fb5, #c8e6f5)\n```\n\n**3. 文字压渐变上要注意对比度**\n\n浅色渐变上放白字基本看不清。要么加深色文字，要么给渐变加一层遮罩：\n\n```css\n.hero {\n  background: linear-gradient(135deg, #ff8fb5, #c8e6f5);\n  color: #ffffff;\n  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);   /* 加个阴影提可读性 */\n}\n```\n\n**4. 渐变角度统一**\n\n整个站点的渐变都用 `135deg`，视觉上会整齐很多。混着 90deg、45deg 用会显得很乱。\n\n## 一个实际例子\n\n博客卡片 hover 时的效果：\n\n```css\n.card {\n  background: #fff;\n  border-radius: 12px;\n  transition: transform 0.2s, box-shadow 0.2s;\n}\n\n.card:hover {\n  transform: translateY(-3px);\n  box-shadow: 0 6px 18px rgba(224, 78, 130, 0.15);\n}\n```\n\n背景保持纯白，把颜色留给强调元素，页面会干净很多。渐变是调味料，不是主菜。', NULL, 1, 1, 1, 0, 0, 143, 0, NOW()),
+
+(8, '我常用的 5 个提升写作效率的工具', '按用途分类，说说每个工具解决什么问题，以及为什么最后留下了它们。', '# 我常用的 5 个提升写作效率的工具\n\n工具不在多，顺手最重要。下面这五类是我折腾了一圈之后真正留下来的。\n\n## 1. Markdown 编辑器\n\n**解决的问题**：写着写着去调格式，思路断了。\n\nMarkdown 的好处是**格式和内容分离**。打字的时候只管内容，标题、列表、代码块用几个符号表示，渲染是后面的事。\n\n选编辑器的几个关注点：\n\n- 有没有实时预览（分屏或者侧边）\n- 图片能不能直接粘贴上传\n- 代码块有没有高亮\n- 撤销好不好用\n\n最后一条经常被忽略，但写长文的时候特别重要。\n\n## 2. 截图工具\n\n**解决的问题**：写教程时要配图，来回切换窗口很烦。\n\n好用的截图工具应该满足：\n\n- 快捷键截图，不用先打开软件\n- 支持区域截图和窗口截图\n- 能直接标注（画框、箭头、打码）\n- 存到剪贴板，直接粘贴进编辑器\n\n最后一点是关键 —— 少一次「保存到本地再上传」的步骤。\n\n## 3. 云笔记\n\n**解决的问题**：灵感来的时候在手机上，坐在电脑前就忘了。\n\n用途是**随手记**，不是写长文。所以要求很简单：打开快、同步快、支持多端。\n\n我的用法是：\n\n- 想到什么先记一句，不求完整\n- 每周整理一次，把值得展开的挑出来\n- 写文章时从这里翻素材\n\n## 4. 代码片段管理\n\n**解决的问题**：常用代码每次都要翻旧项目找。\n\n比如分页查询、统一响应类、Nginx 配置模板，这些代码结构稳定、经常复用。统一管理起来，用的时候直接拿。\n\n简单的做法是用编辑器自带的代码片段功能，或者干脆建个私有仓库，按语言分目录。\n\n## 5. 图床\n\n**解决的问题**：图片放在本地，换电脑就找不到，博客搬走了图片全挂。\n\n图片统一上传到图床，文章里存 URL。这样：\n\n- 博客换服务器，文章里的图片不受影响\n- 本地仓库不会越来越臃肿\n- 可以配合 CDN 加速\n\n不过要注意别把图床当网盘用，重要图片还是留一份本地备份。\n\n## 小结\n\n| 工具 | 解决的核心问题 |\n| --- | --- |\n| Markdown 编辑器 | 专注内容，不被格式打断 |\n| 截图工具 | 配图快，能直接粘贴 |\n| 云笔记 | 灵感随时记，多端同步 |\n| 代码片段管理 | 常用代码随取随用 |\n| 图床 | 图片不随博客搬家而丢失 |\n\n最后说一句：工具是为内容服务的，别陷入「折腾工具比写作还久」的循环。', NULL, 6, 1, 1, 0, 0, 96, 0, NOW()),
+
+(9, 'MyBatis XML 常见写法与踩坑总结', '动态 SQL、resultMap、批量操作的正确写法，以及 #{} 和 ${} 的区别。', '# MyBatis XML 常见写法与踩坑总结\n\n## 动态 SQL\n\n按条件拼接查询是最常见的需求：\n\n```xml\n<select id="list" resultMap="postMap">\n    SELECT p.*, c.name AS category_name\n    FROM post p\n    LEFT JOIN category c ON c.id = p.category_id\n    WHERE p.deleted = 0\n    <if test="categoryId != null">\n        AND p.category_id = #{categoryId}\n    </if>\n    <if test="keyword != null and keyword != null and keyword.length() > 0">\n        AND p.title LIKE CONCAT(#{keywordPrefix}, #{keyword}, #{keywordSuffix})\n    </if>\n    ORDER BY p.id DESC\n    LIMIT #{offset}, #{limit}\n</select>\n```\n\n**坑**：`<if test="...">` 里的 `and` 用 `and` 或 `&&` 都行，但比较字符串要用 `.length() > 0` 或者用 `!= null and keyword != ""`。直接写 `keyword != ""` 在 OGNL 里有时会把空串和 null 混淆。\n\n## resultMap 处理字段映射\n\n开了 `map-underscore-to-camel-case: true` 之后，`create_time` 会自动映射到 `createTime`。但如果查询里用了别名，或者有嵌套对象，就得手写：\n\n```xml\n<resultMap id="postMap" type="Post">\n    <id property="id" column="id"/>\n    <result property="createTime" column="create_time"/>\n    <result property="categoryName" column="category_name"/>\n    <collection property="tags" column="id"\n                select="selectTagsByPostId"/>\n</resultMap>\n```\n\n`collection` 配 `select` 会产生 N+1 问题 —— 查出 10 篇文章就多发 10 条 SQL。数据量大时应该改用 `JOIN` 一次查完，在 Java 层组装。\n\n## 批量操作\n\n```xml\n<insert id="batchInsert">\n    INSERT INTO post_tag (post_id, tag_id) VALUES\n    <foreach collection="list" item="item" separator=",">\n        (#{item.postId}, #{item.tagId})\n    </foreach>\n</insert>\n```\n\n`IN` 查询也一样：\n\n```xml\n<delete id="batchDelete">\n    UPDATE post SET deleted = 1\n    WHERE id IN\n    <foreach collection="ids" item="id" open="(" separator="," close=")">\n        #{id}\n    </foreach>\n</delete>\n```\n\n**坑**：`foreach` 里的 `item` 名字要和 `#{}` 里对得上；`collection` 传 List 时默认名字是 `list`，传数组是 `array`，也可以用 `@Param` 明确命名。\n\n## 最重要的一条：别用 ${}\n\n```xml\n<!-- 危险！SQL 注入 -->\nORDER BY ${column}\n\n<!-- 安全，预编译参数 -->\nWHERE id = #{id}\n```\n\n`#{}` 会被编译成 `?` 占位符，参数走 JDBC 预编译，天然防注入。\n\n`${}` 是纯字符串替换，原样拼进 SQL。**只有在无法用占位符的地方才用它**，比如动态的排序字段 —— 而且这种情况下必须用白名单校验：\n\n```java\nprivate static final Set<String> SORT_WHITELIST =\n        Set.of("latest", "hot", "views");\n\nif (!SORT_WHITELIST.contains(orderBy)) {\n    orderBy = "latest";\n}\n```\n\n## 其它小坑\n\n**1. 分页参数要算好偏移量**\n\n```java\noffset = (page - 1) * pageSize;   // LIMIT #{offset}, #{limit}\n```\n\n**2. 软删除别忘加条件**\n\n几乎所有查询都要带 `WHERE deleted = 0`，漏一个就会出现「删了还在列表里」的 bug。\n\n**3. 更新语句用动态 set**\n\n```xml\n<update id="update">\n    UPDATE post\n    <set>\n        <if test="title != null">title = #{title},</if>\n        <if test="summary != null">summary = #{summary},</if>\n    </set>\n    WHERE id = #{id}\n</update>\n```\n\n这样只更新传了值的字段，不会把没传的字段覆盖成 null。注意最后那个多余的逗号 MyBatis 会自动去掉。', NULL, 2, 1, 1, 0, 0, 221, 0, NOW()),
+
+(10, '二次元壁纸分享：治愈系插画收藏', '整理了一批色调柔和的插画壁纸，顺带聊聊挑壁纸的几个想法。', '# 二次元壁纸分享\n\n最近整理了一下收藏的插画，挑了一批色调偏柔和的分享出来。\n\n## 为什么偏爱治愈系\n\n看屏幕的时间太长了。高饱和、强对比的图第一眼看着有冲击力，但盯久了眼睛累、注意力也容易被拉走。\n\n柔和色调的插画不一样 —— 大面积的低饱和背景、缓慢的明暗过渡，放在桌面上不抢眼，但偶尔扫到一眼会觉得挺舒服。\n\n## 挑壁纸的几个想法\n\n**1. 留白比构图重要**\n\n桌面上要放图标和窗口，图的中间区域如果细节太密，图标压上去就一片糊。找那些有大片天空、海面、纯色背景的图。\n\n**2. 浅色系更耐看**\n\n深色图配浅色图标很难受，而且晚上看着更刺眼。浅色系壁纸至少不会让桌面元素看不清。\n\n**3. 分辨率留余量**\n\n至少要和你显示器同分辨率，2K 以上更好。缩放会糊，尤其是线条型的插画。\n\n**4. 按心情分区**\n\n我现在是按心情分几组，早上用明亮一点的，晚上换成偏冷的夜景。比一张图用到天荒地老舒服。\n\n## 一些偏好\n\n| 类型 | 喜欢 | 不太喜欢 |\n| --- | --- | --- |\n| 色调 | 低饱和、粉蓝紫 | 高饱和撞色 |\n| 场景 | 日常、黄昏、雨天 | 战斗场面 |\n| 构图 | 大留白、远景 | 人物特写塞满屏 |\n| 时间 | 清晨、黄昏 | 正午强光 |\n\n## 最后\n\n壁纸这东西很个人，上面只是我的偏好，不必当标准。有人就喜欢高对比的视觉冲击，只要自己看着舒服就行。\n\n后面会继续整理更新，也欢迎在评论区分享你觉得不错的作品。', NULL, 7, 1, 1, 0, 0, 168, 0, NOW()),
+
+(11, '博客性能优化清单（草稿）', '记录待做的一些性能优化点，按优先级排列，还没写完。', '# 博客性能优化清单\n\n把想到的优化点记下来，按性价比排个序。\n\n## 一、首屏加载\n\n- [ ] **图片懒加载**\n  文章列表里图片不少，滚动到可视区再加载。用 `loading="lazy"` 最简单，几乎零成本。\n\n- [ ] **路由懒加载**\n  Vue Router 已经用了 `() => import(...)`，确认没有哪个页面被同步引入。\n\n- [ ] **拆包**\n  现在主 chunk 有 1.2MB，主要是 Element Plus 全量引入。可以改成按需引入，或者用 `manualChunks` 拆出来。\n\n## 二、接口层\n\n- [ ] **列表接口加缓存**\n  首页文章列表变化不频繁，可以缓存 30 秒。用 Redis 存序列化结果，或者后端加 Caffeine 本地缓存。\n\n- [ ] **N+1 查询**\n  文章列表要带分类名和标签，确认没有走 `collection + select` 那种懒加载写法。\n\n- [ ] **分页默认值调小**\n  每页 10 条比 20 条体验差别不大，但首屏数据量小一半。\n\n## 三、静态资源\n\n- [ ] **CDN 加速**\n  JS / CSS / 图片走 CDN，服务器只回接口请求。\n\n- [ ] **开启 gzip / brotli**\n  Nginx 里加 `gzip on`，JS 体积能压到三分之一。\n\n- [ ] **静态资源缓存策略**\n  文件名带哈希的可以设 `Cache-Control: max-age=31536000`，`index.html` 要设成不缓存。\n\n## 四、数据库\n\n- [ ] **慢查询检查**\n  开 `slow_query_log`，看有没有超过 1 秒的查询。\n\n- [ ] **补齐索引**\n  重点看 `post` 表的 `status + deleted + publish_time` 组合查询。\n\n## 五、待确认\n\n- 首页要不要静态化？现在 SSR 没上，纯前端渲染首屏还是慢一点。\n- 图片要不要转 WebP？能省一半体积，但旧浏览器要考虑兼容。\n\n（本文尚在整理中，做完一项勾一项）', NULL, 2, 1, 0, 0, 0, 0, 0, NULL),
+
+(12, '关于本站与更新计划', '聊聊这个博客的定位、为什么选择这套技术方案，以及接下来的更新方向。', '# 关于本站与更新计划\n\n## 定位\n\n这是一个**公开的技术博客**。不需要登录就能看文章，注册之后可以评论、点赞、收藏。\n\n内容上主要写技术笔记，偶尔夹带一点生活记录 —— 全是干巴巴的技术文章，自己写着也累。\n\n## 为什么是这个技术栈\n\n后端选 Spring Boot + MyBatis 而不是 JPA，主要是想**把 SQL 握在手里**。博客的查询场景（按分类筛、按标签筛、按时间归档、关键词搜索）用 XML 写清楚比让 ORM 自动生成更好调优。\n\n前端选 Vue 3，是因为组合式 API 在写这种「一个页面多个数据源」的场景时确实顺手。\n\n鉴权用 JWT 而不是 Session，是为了前后端分离部署方便 —— 后端不用维护会话，水平扩容也简单。\n\n## 已经做了什么\n\n- 文章发布与编辑，支持 Markdown 和图片上传\n- 分类、标签、归档、搜索\n- 评论（支持楼中楼）、点赞、收藏\n- 后台管理：文章、评论、分类、标签、友链、站点设置、数据统计\n- 友链页面、关于页面\n\n## 接下来的计划\n\n**近期**\n\n- 后台媒体库管理，统一管理已上传的图片\n- 邮件订阅，让读者能收到更新通知\n- 评论审核，避免垃圾评论直接出现在页面上\n\n**以后**\n\n- 文章草稿自动保存\n- 站内消息通知\n- 更深度的数据统计\n\n## 关于评论\n\n评论区的态度是：**欢迎讨论，不欢迎广告和人身攻击**。观点不同没关系，说清楚理由就行。\n\n技术上有说错的地方，非常欢迎指出来，我会改。\n\n## 最后\n\n这个博客是边学边写的产物，代码和文章都还有很多可以改进的地方。如果你发现什么问题，或者有想聊的话题，欢迎留言。', NULL, 3, 1, 1, 1, 0, 64, 0, NOW());
+-- 文章-标签关联
+-- 说明：第 1 篇（欢迎文）与第 12 篇（关于本站）不打标签，属于站点说明类内容。
+INSERT IGNORE INTO `post_tag` (`post_id`, `tag_id`) VALUES
+(2, 1), (2, 7),
+(3, 2),
+(4, 4),
+(5, 5),
+(6, 6), (6, 9),
+(7, 8),
+(8, 10),
+(9, 2), (9, 4),
+(10, 3),
+(11, 2);
+
+-- 友链
+INSERT IGNORE INTO `link` (`id`, `name`, `url`, `group_name`, `sort`) VALUES
+(1, 'Vue.js', 'https://vuejs.org', '技术伙伴', 1),
+(2, 'Spring', 'https://spring.io', '技术伙伴', 2),
+(3, 'MyBatis', 'https://mybatis.org', '技术伙伴', 3),
+(4, 'MySQL', 'https://www.mysql.com', '技术伙伴', 4),
+(5, 'MDN Web Docs', 'https://developer.mozilla.org', '学习资源', 5),
+(6, '菜鸟教程', 'https://www.runoob.com', '学习资源', 6);
+
+-- 说明：评论数据不预置，请登录后自行发表（评论免审核，发布后直接显示）。

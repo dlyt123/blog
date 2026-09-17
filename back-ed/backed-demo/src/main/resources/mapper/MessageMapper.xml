@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.MessageMapper">
+
+    <insert id="insert">
+        INSERT INTO message (from_user_id, to_user_id, content)
+        VALUES (#{fromUserId}, #{toUserId}, #{content})
+    </insert>
+
+    <!-- 会话列表：先把「我和对方」归并成 other_id，取每个对端的最新一条，再补未读数 -->
+    <select id="conversations" resultType="Message">
+        SELECT x.other_id        AS otherId,
+               COALESCE(u.nickname, u.username) AS otherName,
+               u.avatar          AS otherAvatar,
+               m.content         AS lastContent,
+               m.create_time     AS lastTime,
+               COALESCE(c.unread, 0) AS unread
+        FROM (
+            SELECT t.other_id, MAX(t.id) AS last_id
+            FROM (
+                SELECT CASE WHEN from_user_id = #{userId} THEN to_user_id ELSE from_user_id END AS other_id,
+                       id
+                FROM message
+                WHERE from_user_id = #{userId} OR to_user_id = #{userId}
+            ) t
+            GROUP BY t.other_id
+        ) x
+        JOIN message m ON m.id = x.last_id
+        LEFT JOIN `user` u ON u.id = x.other_id
+        LEFT JOIN (
+            SELECT from_user_id AS other_id, COUNT(*) AS unread
+            FROM message
+            WHERE to_user_id = #{userId} AND is_read = 0
+            GROUP BY from_user_id
+        ) c ON c.other_id = x.other_id
+        ORDER BY x.last_id DESC
+    </select>
+
+    <select id="chat" resultType="Message">
+        SELECT * FROM message
+        WHERE (from_user_id = #{userId} AND to_user_id = #{otherId})
+           OR (from_user_id = #{otherId} AND to_user_id = #{userId})
+        ORDER BY id ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countChat" resultType="long">
+        SELECT COUNT(*) FROM message
+        WHERE (from_user_id = #{userId} AND to_user_id = #{otherId})
+           OR (from_user_id = #{otherId} AND to_user_id = #{userId})
+    </select>
+
+    <update id="markRead">
+        UPDATE message SET is_read = 1
+        WHERE to_user_id = #{userId} AND from_user_id = #{otherId} AND is_read = 0
+    </update>
+
+    <select id="unreadCount" resultType="long">
+        SELECT COUNT(*) FROM message WHERE to_user_id = #{userId} AND is_read = 0
+    </select>
+
+    <delete id="deleteByUser">
+        DELETE FROM message WHERE from_user_id = #{userId} OR to_user_id = #{userId}
+    </delete>
+</mapper>

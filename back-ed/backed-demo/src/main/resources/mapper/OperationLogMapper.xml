@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.OperationLogMapper">
+
+    <insert id="insert">
+        INSERT INTO operation_log (user_id, username, action, target, method, path, ip, success)
+        VALUES (#{userId}, #{username}, #{action}, #{target}, #{method}, #{path}, #{ip}, #{success})
+    </insert>
+
+    <select id="list" resultType="OperationLog">
+        SELECT * FROM operation_log
+        <if test="keyword != null and keyword != ''">
+            WHERE (username LIKE CONCAT('%', #{keyword}, '%')
+                OR action LIKE CONCAT('%', #{keyword}, '%')
+                OR target LIKE CONCAT('%', #{keyword}, '%')
+                OR path LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM operation_log
+        <if test="keyword != null and keyword != ''">
+            WHERE (username LIKE CONCAT('%', #{keyword}, '%')
+                OR action LIKE CONCAT('%', #{keyword}, '%')
+                OR target LIKE CONCAT('%', #{keyword}, '%')
+                OR path LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+
+    <delete id="deleteBefore">
+        DELETE FROM operation_log WHERE create_time &lt; DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </delete>
+
+    <delete id="clear">
+        DELETE FROM operation_log
+    </delete>
+</mapper>

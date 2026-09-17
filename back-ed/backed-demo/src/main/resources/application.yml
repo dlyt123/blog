@@ -1,0 +1,112 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: backed-demo
+  # 本地私有配置（数据库密码、JWT 密钥等敏感值）放在 application-local.yml，
+  # 该文件已在 .gitignore 中排除，不会进版本库。
+  # optional: 表示文件不存在时也能正常启动（只是连不上库 / 用了占位密钥）。
+  # 首次拉代码请复制 application-local.yml.example 为 application-local.yml 并按需填写。
+  config:
+    import: optional:classpath:application-local.yml
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    # 生产环境用环境变量覆盖：DB_USERNAME / DB_PASSWORD
+    # 本地开发把真实值写在 application-local.yml 里即可，不必改这里
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 20MB
+  mail:
+    # 邮件通知（订阅提醒 / 评论通知 / 新文章推送）
+    # 未配置时 JavaMailSender 不会创建，MailService 会自动跳过发送，不影响其它功能。
+    # 常见 SMTP：QQ 邮箱 smtp.qq.com(465)、163 smtp.163.com(465)、阿里云邮件推送 smtpdm.aliyun.com(465)
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.back.backeddemo.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    # 注意：正式环境不要开 StdOutImpl —— 它会把每条 SQL 无差别打到控制台，
+    # 既没有时间戳/日志级别，也无法关闭，还容易把数据刷进日志。
+    # 需要看 SQL 时，改下面 logging.level 里 mapper 包的级别为 debug 即可。
+
+# 日志配置
+logging:
+  level:
+    root: info
+    # ★ 排查 SQL 就把这里改成 debug（改完重启生效），平时保持 info 不打印 SQL
+    com.back.backeddemo.mapper: info
+  # 同时写入文件，部署到服务器后可以随时翻看历史日志（该目录已在 .gitignore 中排除）
+  file:
+    name: ./logs/blog.log
+
+# 自定义配置
+blog:
+  jwt:
+    # ⚠️ 这里的默认值是**占位符**，不是真实密钥。
+    # 正式使用请二选一：
+    #   1) 本地：写进 application-local.yml 的 blog.jwt.secret
+    #   2) 生产：设置环境变量 BLOG_JWT_SECRET（推荐用随机长串）
+    #      生成：node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+    # 启动时如果还是占位符，控制台会打印告警。
+    secret: ${BLOG_JWT_SECRET:CHANGE_ME_set_blog_jwt_secret}
+    # Token 有效期（秒），默认 24 小时
+    expire: ${BLOG_JWT_EXPIRE:86400}
+  upload:
+    # 图片上传目录
+    dir: ./uploads/
+  cors:
+    # 允许跨域的前端来源（逗号分隔）。同源部署（Nginx 同时托管前端后端）时无需配置。
+    allowed-origins: ${BLOG_CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  rate-limit:
+    # 是否开启限流（登录 / 注册 / 评论 / 上传）
+    enabled: ${BLOG_RATE_LIMIT:true}
+    # 部署在 Nginx 后面时保持 true，否则拿到的都是代理 IP，会把所有访客算成同一个
+    trust-proxy: ${BLOG_TRUST_PROXY:true}
+  mail:
+    # 发件人邮箱（一般与 SMTP 账号一致）。留空则邮件通知不生效
+    from: ${BLOG_MAIL_FROM:}
+  # 异常告警收件人：站点出现 500 错误时发邮件到这里（留空则不告警）
+  alert:
+    email: ${BLOG_ALERT_EMAIL:}
+  backup:
+    # 数据库备份目录（相对项目根目录）
+    dir: ${BLOG_BACKUP_DIR:./backups}
+    # 保留最近几个备份，超出的自动删除
+    keep: ${BLOG_BACKUP_KEEP:7}
+    # mysqldump 可执行文件：服务器上装了 MySQL 客户端后一般直接走 PATH；
+    # Windows 本地开发需写全路径，例如 C:/Program Files/MySQL/MySQL Server 8.0/bin/mysqldump.exe
+    mysqldump: ${BLOG_MYSQLDUMP:mysqldump}
+  # 过期数据清理
+  cleanup:
+    # 访客记录保留天数
+    visit-days: ${BLOG_CLEANUP_VISIT_DAYS:90}
+    # 操作日志保留天数
+    operation-days: ${BLOG_CLEANUP_OPERATION_DAYS:180}
+    # 执行时间（cron 表达式），默认每天 04:00
+    cron: ${BLOG_CLEANUP_CRON:0 0 4 * * ?}
+  # 登录保护
+  login:
+    # 连续失败多少次后锁定账号
+    max-attempts: ${BLOG_LOGIN_MAX_ATTEMPTS:5}
+    # 锁定时长（分钟）
+    lock-minutes: ${BLOG_LOGIN_LOCK_MINUTES:15}
+  captcha:
+    # ⚠️ 图形验证码开关。仅供本地联调/自动化测试临时关掉，
+    #    生产环境必须保持 true（关掉等于登录少了防撞库的一层）。
+    enabled: ${BLOG_CAPTCHA_ENABLED:true}

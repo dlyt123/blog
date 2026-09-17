@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.CommentMapper">
+
+    <!-- 前台评论：联 user 表，实时取当前用户昵称/头像（用户改了资料，旧评论也同步） -->
+    <select id="listByPostId" resultType="Comment">
+        SELECT c.id, c.post_id, c.parent_id, c.user_id, c.content,
+               COALESCE(u.nickname, c.nickname) AS nickname,
+               c.email, c.website,
+               COALESCE(u.avatar, c.avatar) AS avatar,
+               c.status, c.create_time
+        FROM comment c
+        LEFT JOIN `user` u ON u.id = c.user_id
+        WHERE c.post_id = #{postId}
+        <if test="status != null">AND c.status = #{status}</if>
+        ORDER BY c.create_time ASC
+    </select>
+
+    <!-- 顶层评论（分页） -->
+    <select id="listTopByPostId" resultType="Comment">
+        SELECT c.id, c.post_id, c.parent_id, c.user_id, c.content,
+               COALESCE(u.nickname, c.nickname) AS nickname,
+               c.email, c.website,
+               COALESCE(u.avatar, c.avatar) AS avatar,
+               c.status, c.create_time
+        FROM comment c
+        LEFT JOIN `user` u ON u.id = c.user_id
+        WHERE c.post_id = #{postId} AND c.parent_id = 0
+        <if test="status != null">AND c.status = #{status}</if>
+        ORDER BY c.create_time ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countTopByPostId" resultType="long">
+        SELECT COUNT(*) FROM comment
+        WHERE post_id = #{postId} AND parent_id = 0
+        <if test="status != null">AND status = #{status}</if>
+    </select>
+
+    <!-- 某几个顶层评论的楼中楼回复 -->
+    <select id="listRepliesByParentIds" resultType="Comment">
+        SELECT c.id, c.post_id, c.parent_id, c.user_id, c.content,
+               COALESCE(u.nickname, c.nickname) AS nickname,
+               c.email, c.website,
+               COALESCE(u.avatar, c.avatar) AS avatar,
+               c.status, c.create_time
+        FROM comment c
+        LEFT JOIN `user` u ON u.id = c.user_id
+        WHERE c.status = 1 AND c.parent_id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY c.create_time ASC
+    </select>
+
+    <select id="listAdmin" resultType="Comment">
+        SELECT c.id, c.post_id, c.parent_id, c.user_id, c.content,
+               COALESCE(u.nickname, c.nickname) AS nickname,
+               c.email, c.website,
+               COALESCE(u.avatar, c.avatar) AS avatar,
+               c.status, c.create_time
+        FROM comment c
+        LEFT JOIN `user` u ON u.id = c.user_id
+        <where>
+            <if test="status != null">AND c.status = #{status}</if>
+        </where>
+        ORDER BY c.create_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comment (post_id, parent_id, user_id, content, nickname, email, website, avatar, status)
+        VALUES (#{postId}, #{parentId}, #{userId}, #{content}, #{nickname}, #{email}, #{website}, #{avatar}, #{status})
+    </insert>
+
+    <!-- 最新评论（首页侧边栏）：只取通过的评论，且文章本身仍可见 -->
+    <select id="listRecent" resultType="Comment">
+        SELECT c.id, c.post_id, c.content, c.user_id,
+               COALESCE(u.nickname, c.nickname) AS nickname,
+               COALESCE(u.avatar, c.avatar) AS avatar,
+               c.create_time,
+               p.title AS post_title
+        FROM comment c
+        LEFT JOIN `user` u ON u.id = c.user_id
+        JOIN post p ON p.id = c.post_id AND p.deleted = 0 AND p.status = 1
+        WHERE c.status = 1
+        ORDER BY c.create_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE comment SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM comment WHERE id = #{id}
+    </delete>
+
+    <!-- 回复通知需要：拿到被回复评论的作者与所属文章 -->
+    <select id="findById" resultType="Comment">
+        SELECT c.id, c.post_id, c.parent_id, c.user_id, c.content, c.status, c.create_time,
+               COALESCE(u.nickname, c.nickname) AS nickname,
+               u.email AS email
+        FROM comment c
+        LEFT JOIN `user` u ON u.id = c.user_id
+        WHERE c.id = #{id}
+    </select>
+
+    <!-- 注销账号：评论内容保留，作者信息匿名 -->
+    <update id="anonymizeUser">
+        UPDATE comment SET user_id = NULL, nickname = '已注销用户', email = NULL, avatar = NULL
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>

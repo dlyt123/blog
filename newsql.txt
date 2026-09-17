@@ -1,0 +1,652 @@
+-- ================================================================
+-- 个人博客网站 · 数据库增量更新脚本
+-- 文件：newsql.txt      目标库：blog
+--
+-- 用途
+--   把「旧版本」的 blog 库升级到与当前代码匹配的结构。
+--
+-- 特点
+--   本脚本所有语句都是「幂等」的：可以重复执行，不报错、不丢数据。
+--   如果你的库已经是最新结构，执行后不会有任何变化（相当于空跑）。
+--   完整建表 + 测试数据见同目录 sql.txt（那是全量脚本，只在全新环境用）。
+--
+-- 执行方式（任选其一）
+--   1) 命令行：mysql -uroot -p < newsql.txt
+--   2) Navicat / 其他客户端：打开本文件后直接执行
+-- ================================================================
+
+USE `blog`;
+
+-- ================================================================
+-- 一、表结构增量
+-- ================================================================
+
+-- 1. post 表：新增 author_id（文章作者，用于区分「管理员 / 普通用户」的文章归属）
+SET @has := (SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post' AND COLUMN_NAME = 'author_id');
+SET @ddl := IF(@has = 0,
+  'ALTER TABLE `post` ADD COLUMN `author_id` BIGINT DEFAULT NULL COMMENT ''作者ID（关联user表）''',
+  'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 2. comment 表：新增 user_id（评论者用户ID；昵称头像改为从这里实时联表读取）
+SET @has := (SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'comment' AND COLUMN_NAME = 'user_id');
+SET @ddl := IF(@has = 0,
+  'ALTER TABLE `comment` ADD COLUMN `user_id` BIGINT DEFAULT NULL COMMENT ''评论者用户ID（关联user表）''',
+  'SELECT 1');
+PREPARE stmt FROM @ddl; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- 3. comment.status 默认值改为 1（评论免审核，发表后直接可见；管理员仍可驳回/删除）
+ALTER TABLE `comment`
+  MODIFY COLUMN `status` TINYINT NULL DEFAULT 1
+  COMMENT '0待审核 1通过 2驳回（默认直接通过，免审核）';
+
+-- 4. post_like：点赞记录表（一个用户对一篇文章只能点一次）
+CREATE TABLE IF NOT EXISTS `post_like` (
+  `id`          BIGINT   NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT   NOT NULL,
+  `post_id`     BIGINT   NOT NULL,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_post` (`user_id`, `post_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. post_favorite：收藏记录表（一个用户对一篇文章只能收藏一次）
+CREATE TABLE IF NOT EXISTS `post_favorite` (
+  `id`          BIGINT   NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT   NOT NULL,
+  `post_id`     BIGINT   NOT NULL,
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_post` (`user_id`, `post_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 6. user.role：普通用户默认角色改为 USER（只有管理员才是 ADMIN）
+ALTER TABLE `user`
+  MODIFY COLUMN `role` VARCHAR(20) DEFAULT 'USER'
+  COMMENT 'USER普通用户(博主) / ADMIN管理员';
+
+-- 7. visit_log：访客留痕表（记录每一次页面访问，含未登录游客）
+CREATE TABLE IF NOT EXISTS `visit_log` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT       DEFAULT NULL COMMENT '访问者用户ID；为空表示未登录游客',
+  `ip`          VARCHAR(64)  DEFAULT NULL,
+  `path`        VARCHAR(255) DEFAULT NULL COMMENT '访问的前端路由，如 /posts/1',
+  `referer`     VARCHAR(500) DEFAULT NULL COMMENT '来源页面',
+  `user_agent`  VARCHAR(500) DEFAULT NULL,
+  `device`      VARCHAR(100) DEFAULT NULL COMMENT '浏览器 / 系统',
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_create_time` (`create_time`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='访客访问留痕，仅管理员可查看';
+
+-- 8. sensitive_word：评论敏感词库（管理员可在后台「敏感词管理」页维护）
+CREATE TABLE IF NOT EXISTS `sensitive_word` (
+  `id`          BIGINT      NOT NULL AUTO_INCREMENT,
+  `word`        VARCHAR(64) NOT NULL COMMENT '敏感词',
+  `create_time` DATETIME    DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_word` (`word`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评论敏感词库（管理员可维护）';
+
+-- 默认词库（以垃圾广告 / 诈骗 / 辱骂为主，可按需自行增删）
+INSERT IGNORE INTO `sensitive_word` (`word`) VALUES
+('办证'),('代开发票'),('刷单'),('兼职日结'),('无抵押贷款'),('高炮口子'),
+('博彩网'),('澳门赌场'),('时时彩'),('六合彩'),('棋牌室'),('私服外挂'),
+('卖号'),('约炮'),('一夜情'),('成人影片'),('色情网站'),
+('傻逼'),('煞笔'),('尼玛'),('滚出去'),('垃圾网站');
+
+-- 9. user_follow：用户关注关系（用于「用户主页 + 关注」功能）
+CREATE TABLE IF NOT EXISTS `user_follow` (
+  `id`          BIGINT   NOT NULL AUTO_INCREMENT,
+  `follower_id` BIGINT   NOT NULL COMMENT '关注者（谁点的关注）',
+  `followee_id` BIGINT   NOT NULL COMMENT '被关注者（被关注的人）',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_follow` (`follower_id`, `followee_id`),
+  KEY `idx_followee` (`followee_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户关注关系（一个用户对同一个人只能关注一次）';
+
+-- 10. sensitive_log：敏感词命中记录（管理员后台可查看被拦了什么）
+CREATE TABLE IF NOT EXISTS `sensitive_log` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `word`        VARCHAR(64)  NOT NULL COMMENT '命中的敏感词',
+  `scene`       VARCHAR(50)  COMMENT '触发场景',
+  `content`     VARCHAR(1000) COMMENT '被拦截的内容（截断存储）',
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='敏感词命中记录（仅管理员可见）';
+
+-- 11. report：内容举报
+CREATE TABLE IF NOT EXISTS `report` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `target_type` VARCHAR(20)  NOT NULL COMMENT 'post 文章 / comment 评论',
+  `target_id`   BIGINT       NOT NULL,
+  `reason`      VARCHAR(200) COMMENT '举报理由',
+  `user_id`     BIGINT       COMMENT '举报人 id',
+  `status`      TINYINT      DEFAULT 0 COMMENT '0 待处理 / 1 已处理',
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='内容举报（管理员后台处理）';
+
+-- 12. series：文章系列 / 专栏
+CREATE TABLE IF NOT EXISTS `series` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `name`        VARCHAR(100) NOT NULL,
+  `description` VARCHAR(500),
+  `sort`        INT          DEFAULT 0,
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章系列 / 专栏';
+
+-- 13. post 增加 series_id 列（幂等）
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'blog' AND table_name = 'post' AND column_name = 'series_id');
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE post ADD COLUMN series_id BIGINT DEFAULT NULL COMMENT ''所属系列'' AFTER category_id',
+  'SELECT ''post.series_id 已存在''');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 14. post 增加 scheduled_at 列（定时发布，幂等）
+SET @col_exists := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema = 'blog' AND table_name = 'post' AND column_name = 'scheduled_at');
+SET @ddl := IF(@col_exists = 0,
+  'ALTER TABLE post ADD COLUMN scheduled_at DATETIME DEFAULT NULL COMMENT ''定时发布时间'' AFTER publish_time',
+  'SELECT ''post.scheduled_at 已存在''');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 15. operation_log：后台操作日志（审计）
+CREATE TABLE IF NOT EXISTS `operation_log` (
+  `id`          BIGINT       NOT NULL AUTO_INCREMENT,
+  `user_id`     BIGINT       COMMENT '操作人 id',
+  `username`    VARCHAR(64)  COMMENT '操作人用户名',
+  `action`      VARCHAR(50)  COMMENT '动作：新增/修改/删除',
+  `target`      VARCHAR(200) COMMENT '操作对象（如：文章 #3）',
+  `method`      VARCHAR(10)  COMMENT 'HTTP 方法',
+  `path`        VARCHAR(200) COMMENT '请求路径',
+  `ip`          VARCHAR(64),
+  `success`     TINYINT      DEFAULT 1 COMMENT '1 成功 / 0 失败',
+  `create_time` DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_time` (`create_time`),
+  KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='后台操作日志（审计）';
+
+-- 16. user 增加密码重置令牌（找回密码）
+SET @c := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema='blog' AND table_name='user' AND column_name='reset_token');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE user ADD COLUMN reset_token VARCHAR(64) DEFAULT NULL COMMENT ''密码重置令牌'' AFTER email',
+  'SELECT ''user.reset_token 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 17. user 增加重置令牌过期时间
+SET @c := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema='blog' AND table_name='user' AND column_name='reset_expire');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE user ADD COLUMN reset_expire DATETIME DEFAULT NULL COMMENT ''重置令牌过期时间'' AFTER reset_token',
+  'SELECT ''user.reset_expire 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 18. subscribe 增加退订令牌
+SET @c := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema='blog' AND table_name='subscribe' AND column_name='token');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE subscribe ADD COLUMN token VARCHAR(64) DEFAULT NULL COMMENT ''退订令牌'' AFTER email',
+  'SELECT ''subscribe.token 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 19. subscribe 增加退订标记
+SET @c := (SELECT COUNT(*) FROM information_schema.columns
+  WHERE table_schema='blog' AND table_name='subscribe' AND column_name='unsubscribed');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE subscribe ADD COLUMN unsubscribed TINYINT DEFAULT 0 COMMENT ''1=已退订'' AFTER token',
+  'SELECT ''subscribe.unsubscribed 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 给已有的订阅补 token（幂等）
+UPDATE subscribe SET token = MD5(UUID()) WHERE token IS NULL OR token = '';
+
+-- 20. message：私信
+CREATE TABLE IF NOT EXISTS `message` (
+  `id`           BIGINT        NOT NULL AUTO_INCREMENT,
+  `from_user_id` BIGINT        NOT NULL COMMENT '发送者',
+  `to_user_id`   BIGINT        NOT NULL COMMENT '接收者',
+  `content`      VARCHAR(1000) NOT NULL COMMENT '内容',
+  `is_read`      TINYINT       DEFAULT 0 COMMENT '1=已读',
+  `create_time`  DATETIME      DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_from` (`from_user_id`),
+  KEY `idx_to_read` (`to_user_id`, `is_read`),
+  KEY `idx_pair` (`from_user_id`, `to_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私信';
+
+-- ================================================================
+-- 二、数据修正（同样幂等）
+-- ================================================================
+
+-- 1. 历史文章：作者为空、或作者账号已不存在的，统一归到管理员账号名下
+UPDATE `post`
+SET `author_id` = (SELECT `id` FROM `user` WHERE `username` = 'admin' LIMIT 1)
+WHERE `author_id` IS NULL
+   OR `author_id` NOT IN (SELECT `id` FROM `user`);
+
+-- 2. 清理「没有对应用户」的历史评论
+--    （这类评论的昵称/头像只是写死的字符串，并非数据库里的真实用户）
+-- ⚠️ 这是**删除操作**，默认注释掉了。只有确认库里存在这类历史遗留评论时才放开执行。
+-- DELETE FROM `comment` WHERE `user_id` IS NULL;
+
+-- 3.（可选，默认注释）校准点赞数，让 post.likes 与真实点赞记录数一致
+--    背景：测试数据里的 post.likes 是写死的"好看"数字（13 / 42 / 31 …），
+--          但 post_like 表里并没有对应记录，于是会出现
+--          「文章显示 42 赞，实际 0 个人点过」这种页面数字与记录数对不上的情况。
+--    说明：想严格一致就取消下面两行注释再执行；
+--          想保留演示用的好看数字，就保持注释不动（当前接口以 post.likes 为准，页面不会报错）。
+-- UPDATE `post` p
+-- LEFT JOIN (SELECT `post_id`, COUNT(*) AS c FROM `post_like` GROUP BY `post_id`) t
+--        ON t.`post_id` = p.`id`
+-- SET p.`likes` = COALESCE(t.c, 0);
+
+-- ================================================================
+-- 四、把示例文章重置为「真实文章」版本（⚠️ 默认不执行，需手动取消注释）
+-- ================================================================
+-- 背景：早期 sql.txt 里的 12 篇示例文章只是提纲式占位内容，
+--       现已全部改写为真正可读的技术文章，同时把写死的点赞数清零
+--       （原来 likes 合计 295，但 post_like 里并没有对应记录）。
+--
+-- ⚠️⚠️ 重要提醒：下面 5 条 DELETE 会**真的删掉 id 1~12 的文章**！
+--       所以它们**默认被注释掉了**，只有你确实想重置示例文章时才手动放开。
+--       平时跑本脚本做增量更新（建表、改列）时，请保持注释状态。
+--
+-- 重置流程（想换回新文章时）：
+--   1) 取消下面 5 条 DELETE 的注释并执行；
+--   2) 重新导入 sql.txt（INSERT IGNORE 会把最新的文章补回来，其它数据不受影响）。
+--   如果你本来就要在全新服务器上建库，直接跑 sql.txt 即可，本节完全不用管。
+-- ================================================================
+
+-- DELETE FROM `post_like`     WHERE `post_id` BETWEEN 1 AND 12;
+-- DELETE FROM `post_favorite` WHERE `post_id` BETWEEN 1 AND 12;
+-- DELETE FROM `comment`       WHERE `post_id` BETWEEN 1 AND 12;
+-- DELETE FROM `post_tag`      WHERE `post_id` BETWEEN 1 AND 12;
+-- DELETE FROM `post`          WHERE `id`      BETWEEN 1 AND 12;
+
+-- 执行完上面 5 条后，重新导入 sql.txt 即可。
+-- ================================================================
+
+-- ================================================================
+-- 三、本次代码层修复记录（不涉及数据变更，仅备查）
+-- ================================================================
+--
+-- 1. 标签云显示的文章数偏大
+--    原因：计数时把「草稿」也算进去了。
+--    修复：后端 mapper/TagMapper.xml 改为只统计 status=1 且 deleted=0 的文章。
+--
+-- 2. 点标签后列表里的文章比显示的少
+--    原因：前端原来用「关键词搜索」实现标签筛选，只匹配标题/摘要，
+--          标题里不含该标签名的文章会被漏掉。
+--    修复：前端 views/Tags.vue 改为按 tag_id 精确筛选；
+--          文章卡片 / 详情页点标签统一跳到 /tags?name=xxx 并自动选中。
+--
+-- 3. 分类（category）的计数与筛选本来就是对的，未做改动。
+--
+-- 【第二次全量一致性检查的结果】
+-- 4. 文章详情页的评论数只统计了「顶层评论」，漏掉楼中楼回复
+--    修复：前端 components/CommentSection.vue 改为统计 顶层评论 + 所有回复。
+--
+-- 5. 站点设置里有 logo / pageSize 两个字段，但前台没读取、后台也没法编辑
+--    修复：前台顶部 logo、首页每页文章数改为读取站点设置；
+--          后台「站点设置」页新增 Logo 上传与「每页文章数」编辑。
+--
+-- 6. 数据统计页的「文章数」含草稿，与前台看到的篇数口径不同（容易误以为对不上）
+--    修复：后端 StatsController 增加 publishedPosts / draftPosts，
+--          统计卡片上直接标注「已发布 X · 草稿 Y」。
+--
+-- 7. 以下属于「数据存在但前台暂无入口」，不是数据错误，按需补功能即可：
+--    · link 表有 6 条友链，但前台还没有「友情链接」展示页（只有后台管理页）
+--    · media 表有记录，但还没有「媒体库」管理页
+--    · subscribe 表暂无数据，前台也还没有「邮件订阅」入口
+--    · post.views / post.likes 是计数器字段，会随浏览/点赞累加；
+--      其中 likes 的初始值与点赞记录数不一致的问题见上面「二、3」（可选校准）。
+--
+-- 【发布文章 · 表格功能增强】（纯前端，不涉及数据库）
+-- 8. 表格原来只能插入固定的 2 列，无法自选大小、也难增删行列
+--    修复：components/MarkdownEditor.vue
+--      · 表格按钮改为弹出「行 × 列」选择面板（最大 8 × 8），第一行为表头
+--      · 插入后自动选中第一个表头占位文字，可直接打字覆盖
+--      · 光标位于表格内时，工具栏下方出现「＋行 / －行 / ＋列 / －列 / 删除表格」
+--      · 列数多时表格可横向滚动，不再被挤压变形（styles/anime.css + 编辑器预览区）
+--
+-- 【发布文章 · 缩进体验优化】（纯前端，不涉及数据库）
+-- 9. 原来只能用空格手动敲缩进（Tab 键会被浏览器用来切换焦点），且回车不会自动缩进
+--    修复：components/MarkdownEditor.vue
+--      · Tab 缩进 / Shift+Tab 反缩进（一个缩进级别 = 2 个空格）；
+--        选中多行时整块缩进 / 反缩进，选区恰好以换行结尾时不会多缩进空行
+--      · 回车按上下文自动续排：
+--          - 代码块内：沿用当前缩进；行尾是 { ( [ : 时再多缩进一级
+--          - 列表：自动续上无序标记；有序列表数字自增；空列表项回车则退出列表
+--          - 引用：自动续上 >
+--          - 普通行：沿用当前行缩进
+--
+-- 【前台友链页】（纯前端，不涉及数据库；link 表数据本来就有）
+-- 10. 数据库 link 表里有 6 条友链，但前台没有展示入口
+--     新增：views/Links.vue（按 group_name 分组展示，卡片可点击，新窗口打开）
+--           路由 /links，顶部导航加「友链」入口
+--
+-- 【提示信息美化 + 登录页不再弹「未登录或 Token 缺失」】
+-- 11. 问题根因：登录页也会请求 /api/settings，未登录时后端返回 401，
+--     被前端拦截器弹成了「未登录或 Token 缺失」这种技术性提示。
+--     修复：
+--       a) 前端 api/request.js 重写拦截器 ——
+--          · 未登录（本地本来就没 token）触发 401 时**静默跳登录页，不弹提示**；
+--          · 只有「原本已登录但 token 失效」才提示「登录已过期，请重新登录」；
+--          · 新增文案映射表，把后端技术提示翻译成友好文案，例如
+--            「未登录或 Token 缺失」→「请先登录后再操作」、
+--            「Token 无效或已过期」→「登录已过期，请重新登录」、
+--            「用户名或密码错误」→「用户名或密码不正确，请检查后重试」、
+--            「服务器内部错误：xxx」→「服务器开小差了，请稍后重试」等；
+--          · 提示同内容自动合并（grouping），不再刷屏。
+--       b) 后端新增**公开接口** `GET /api/site-info`（只返回站点名/副标题/描述/Logo/备案号/每页文章数，
+--          不含「关于我」），并在 WebConfig 里放行，这样登录页也能正常显示站点名；
+--          前端 store/site.js 改用它（原来是 /api/settings，需登录）。
+--      ⚠️ 本条**不涉及数据库变更**，纯代码调整。
+--
+-- 【安全加固（上线前）】—— 全部不涉及数据库结构
+-- 12. 修复 6 处安全问题 + 新增限流与 .gitignore：
+--     ① /api/auth/me、PUT /api/auth/me 不再返回密码哈希（AuthService.safe()）
+--     ② 图片上传加后缀白名单 + Content-Type 校验（只允许 jpg/png/gif/webp/bmp）
+--        —— 原来 .html 也能传，会被同源访问从而窃取登录令牌
+--     ③ 全局异常的 500 不再回传 e.getMessage()，只写服务端日志
+--     ④ JWT 密钥 / 数据库密码支持环境变量覆盖（BLOG_JWT_SECRET / DB_PASSWORD）
+--     ⑤ CORS 从 「* + allowCredentials」改为配置白名单（blog.cors.allowed-origins）
+--     ⑥ Markdown 渲染统一走 utils/markdown.js（markdown-it + DOMPurify 净化），
+--        防存储型 XSS（注册开放 ⇒ 任何人都可能发恶意文章）
+--     ⑦ 新增 RateLimitInterceptor：登录 10 次/5 分钟、注册 5 次/小时、
+--        写操作 30 次/分钟（按 IP，反向代理下读 X-Forwarded-For）
+--     ⑧ 新增 demo/.gitignore，避免把密码 / node_modules / 上传文件提交进 Git
+--
+-- 【改为「公开博客 + 登录使用完整功能」】—— 不涉及数据库结构
+-- 13. 全站由「强制登录」改为「前台公开、写操作需登录」：
+--     a) 后端 JwtInterceptor 改为「软鉴权」：带合法 token 就识别身份，匿名/过期 token 当作访客放行
+--     b) 新增 RequireLoginInterceptor，规则：
+--        · 需要登录：/api/admin/**、/api/auth/me、点赞/收藏（含 /status）、
+--          以及所有其它写操作（POST/PUT/DELETE）
+--        · 例外（允许匿名写）：/api/auth/login、/api/auth/register、/api/subscribe
+--        · 其余 GET 读接口（文章/分类/标签/归档/搜索/关于/友链/评论列表/RSS）全部公开
+--     c) 拦截器执行顺序：限流 → 解析 token → 登录校验 → 管理员校验
+--     d) 前端路由：只有 /write、/profile、/admin/** 标 meta.requiresAuth 强制登录，
+--        其余页面匿名可访问；未登录时导航显示「登录 / 注册」
+--     e) 启动时静默校验 token（getMe 带 skipAuthToast）：失效就悄悄退成访客，不弹提示
+--     f) 顺带修 GlobalExceptionHandler：404 →「资源不存在」、405 →「请求方式不支持」，
+--        不再把所有异常都报成 500
+--
+-- 【补齐需求文档中未完成的功能】
+-- 14. 新增后台「媒体库」页：网格展示已上传图片，支持按文件名搜索、复制完整地址、
+--     复制 Markdown 图片语法、删除；可直接在页面上传（复用 POST /api/admin/media）。
+-- 15. 新增前台「邮件订阅」入口：页脚订阅框（登录/注册页不显示），
+--     提交走 POST /api/subscribe；后台新增「邮件订阅」页查看/移除订阅者、一键复制全部邮箱。
+--     配套新增后端接口：GET /api/admin/subscribes、DELETE /api/admin/subscribes/{id}
+--     （仅管理员，已加入 AdminOnlyInterceptor 白名单）。
+-- 16. Markdown 编辑器工具栏新增「插入表格」的自选行列面板与表格工具条。
+-- 17. 示例文章全部改写为真实可读的技术文章（见上面「四」）；
+--     写死的点赞数统一清零，与 post_like 表保持一致。
+-- 18. 文档同步：接口文档升级到 V1.2（新增「15 版本变更记录」，含鉴权模型调整、
+--     新增接口清单、上传限制、接口限流、安全约定）；需求文档升级到 V1.1
+--     （新增「11 变更说明」，含站点定位调整、功能完成情况、安全落地情况、后续迭代建议）。
+--
+-- 【第三批：敏感词过滤 + HTTP 状态码规范】
+-- 19. 新增评论敏感词过滤：
+--     - 建表 sensitive_word（见上面「一、」第 8 条），预置 22 个词（垃圾广告/诈骗/辱骂类）。
+--     - 后端 SensitiveWordService：启动时把词库读进内存，评论提交时比对，命中即拦截
+--       （返回 400「内容包含敏感词，请修改后再提交」），并把命中词写进服务端日志。
+--     - 后台新增「🚫 敏感词管理」页：列表 / 搜索 / 批量粘贴添加 / 删除，
+--       增删后自动刷新内存缓存，无需重启。
+--     - 接口：GET / POST /api/admin/sensitive-words、DELETE /api/admin/sensitive-words/{id}（仅管理员）
+--     - 说明：评论仍是「发即显示」（不先审后发），敏感词走拦截策略。
+--
+-- 20. HTTP 状态码规范化（重要）：
+--     - 之前所有响应都是 HTTP 200，真实结果藏在 body 的 code 里；
+--       现在新增 HttpStatusAdvice（ResponseBodyAdvice），让 HTTP 状态码与业务码一致：
+--       400/401/403/404/405/429/500 直接映射为同名 HTTP 状态码。
+--     - body 结构不变（仍是 { code, message, data }），**前端无需改动**
+--       （前端拦截器本来就同时处理「业务码 401」和「HTTP 401」两种情况）。
+--     - 好处：Nginx 日志、监控告警、WAF 能直接看出成功/失败，
+--       例如暴力破解登录不再伪装成一片 200。
+--     - ⚠️ Nginx 反代注意：默认 proxy_intercept_errors 是 off，上游状态码会原样透传，无需额外配置；
+--       若自己开了 error_page 拦截，记得别把 401/403/429 吞掉。
+--
+-- 【第四批：收藏闭环 + 用户主页关注 + 首页侧边栏 + AI 辅助写作】
+-- 21. 补上「收藏」功能的闭环（之前能收藏但没有任何入口能看到收藏了什么）：
+--     - 后端新增 GET /api/users/me/favorites（分页，需登录）
+--     - 前端新增页面 /favorites「我的收藏」，导航用户菜单里也加了入口
+-- 22. 用户主页 + 关注：
+--     - 建表 user_follow（见上面「一、」第 9 条）
+--     - 后端新增 GET /api/users/{id}（公开主页信息，**不返回邮箱**）、
+--       GET /api/users/{id}/posts（TA 已发布的文章）、
+--       POST / DELETE /api/users/{id}/follow（关注 / 取关，不能关注自己）
+--     - 前端新增页面 /users/:id；文章卡片、文章详情、评论区的头像与昵称都可点击进入
+-- 23. 首页侧边栏 + 排序切换：
+--     - 后端新增公开接口 GET /api/popular（热门文章）、GET /api/comments/recent（最新评论）
+--     - 首页右侧新增四张卡片：关于我 / 热门文章 / 标签云 / 最新评论（标签云直接用已有的 /api/tags，
+--       它已带 post_count）
+--     - 列表上方新增「最新 / 最热」切换（复用已有的 orderBy 参数，最热 = orderBy=views）
+-- 24. AI 生成摘要与标签 —— **已按站主要求移除**（2026-09-12）
+--     当时实现过（对接 OpenAI 兼容接口 + 写作页按钮），现在后端 AiService/AiController、
+--     application.yml 的 blog.ai.* 配置、前端按钮与接口都已删除，相关表也没有动过。
+--     如果以后想加回来，改动范围很小：一个 Service（HTTP 调 /chat/completions）
+--     + 一个 Controller + 前端一个按钮，不需要动数据库。
+--
+-- ⚠️ 关于本文件的定位（重要，避免误解）：
+--     结构变更都已由助手**直接连库执行**，你本地这个库**已经是最新的**，无需再跑本文件。
+--     本文件是「变更留档」，用途是：
+--       ① 以后**换服务器 / 重建环境**时，照着跑一遍就能复现全部结构；
+--       ② 记录改过什么，方便回溯。
+--     所以：日常不用管它；只有在新服务器/新库上才需要执行。
+-- ================================================================
+
+-- 【第五批：15 个增强功能】
+-- 25. 代码块一键复制 / 图片灯箱 / 阅读时长估算 / 回到顶部 / 深色模式 / 草稿自动保存
+--     —— 纯前端，无表结构变更（草稿存 localStorage，深色模式靠 data-theme + Element Plus dark 类）。
+-- 26. 敏感词命中记录：建表 sensitive_log（见「一、」第 10 条），
+--     SensitiveWordService 拦截时落库，后台「敏感词命中」页可查看 / 清空。
+-- 27. 内容举报：建表 report（见「一、」第 11 条），
+--     POST /api/reports（登录）、GET /api/admin/reports、PUT /api/admin/reports/{id}/handle，
+--     文章页与评论区都有「举报」入口，后台「内容举报」页处理。
+-- 28. 关注流：GET /api/users/me/following/posts，前端 /following 页。
+-- 29. 友链存活检测：POST /api/admin/links/check（后端逐个发请求），友链管理页「检测存活」按钮。
+-- 30. 来源分析：GET /api/admin/visits/referrers（按 referer 聚合），统计页新增「访问来源」条形图。
+-- 31. RSS 全文输出：/api/rss 增加 <content:encoded> 全文 + 绝对链接 + XML 转义。
+-- 32. 文章系列/专栏：建表 series + post.series_id（见「一、」第 12、13 条），
+--     后台「系列管理」、公开 /series 页、写文章页可选系列、文章页显示所属系列。
+-- 33. 一键导出：GET /api/admin/export（把全部文章打包成 Markdown 的 zip），站点设置页按钮。
+-- 34. JSON-LD 结构化数据：index.html 加 WebSite，文章页动态注入 BlogPosting。
+
+-- 【第六批：可运维基础（第二阶段）】
+-- 35. 数据库自动备份：BackupService 调 mysqldump（密码走 MYSQL_PWD 环境变量，不出现在命令行）；
+--     每天 3:00 自动备份 + 后台「立即备份」；保留最近 7 个（blog.backup.* 可配）。
+--     ⚠️ 本地 Windows 需要配 blog.backup.mysqldump 全路径（见 application-local.yml）。
+-- 36. 操作日志/审计：建表 operation_log（见「一、」第 15 条）；
+--     OperationLogInterceptor 自动记录所有非 GET 的 /api/admin/** 请求（谁/做了什么/结果/IP），
+--     后台「操作日志」页可查看与清空。不用在每个 Controller 埋点。
+-- 37. 异常监控告警：GET /api/health（公开，供云监控探活，含数据库连通性）；
+--     GlobalExceptionHandler 捕获未处理异常时给 blog.alert.email 发邮件（5 分钟最多一封，防刷屏）。
+-- 38. 图片上传压缩：ImageUtil（纯 JDK ImageIO）；超过 1920px 等比缩放，
+--     JPEG 按 0.85 质量重编码，**PNG 无透明通道且较大时自动转 JPEG**（实测 2.68MB → 411KB，省 85%）；
+--     有透明通道的 PNG 保持 PNG；压完更大就返回原图（保证不会越压越大）。
+--     顺带修了一个既有 bug：路径校验没 normalize()，导致 "./uploads/" 残留 "." 段被判「非法文件名」。
+
+-- 【第七批：登录安全 / 找回密码 / 退订 / 私信 / 注销】
+-- 39. 图形验证码：CaptchaController GET /api/captcha（返回 key + PNG base64），
+--     CaptchaStore 内存存储 5 分钟、**一次性消费**；登录必须带 captchaKey + captchaCode。
+--     可用 blog.captcha.enabled=false 临时关闭（⚠️ 仅供本地联调，生产必须 true）。
+-- 40. 登录失败锁定：LoginAttemptService；连续失败 5 次锁 15 分钟（blog.login.* 可配），
+--     与「接口限流」「验证码」是三道不同防线（这条是按账号锁，换 IP 也没用）。
+-- 41. 找回密码：user 表加 reset_token / reset_expire（见「一、」第 16、17 条）；
+--     POST /api/auth/forgot-password（无论邮箱是否存在都返回成功，防止探测注册邮箱）、
+--     POST /api/auth/reset-password；重置链接 30 分钟有效，用后即清。
+-- 42. 邮件退订：subscribe 表加 token / unsubscribed（见「一、」第 18、19 条）；
+--     所有订阅邮件都带退订链接 → 前端 /unsubscribe 页 → POST /api/subscribe/unsubscribe；
+--     发信只发给未退订的（SubscribeMapper.listActive）。
+-- 43. 评论通知：NotificationService 统一出口 —— 回复评论通知被回复者、顶层评论通知文章作者、
+--     新文章通知全部订阅者；全部异步且失败不影响主流程；不给自己发通知。
+-- 44. 过期数据自动清理：DataCleanupConfig 每天 4:00（cron 可配 blog.cleanup.cron）
+--     清理 visit_log（默认留 90 天）与 operation_log（默认留 180 天）。
+-- 45. 注销账号：DELETE /api/auth/me（需密码二次确认，管理员不允许自助注销）；
+--     删除私信/收藏/点赞/关注关系 + 账号本身，文章与评论保留但匿名化
+--     （作者显示「已注销用户」）；删点赞前会同步扣减文章的 likes 冗余计数。
+-- 46. 私信：建表 message（见「一、」第 20 条）；
+--     POST /api/messages、GET /api/messages/conversations、GET /api/messages/with/{id}、
+--     PUT /api/messages/with/{id}/read、GET /api/messages/unread-count；
+--     私信全部接口需登录，内容同样过敏感词过滤。
+-- 47. 文章预览：写文章页「👁 预览」按钮，弹窗按前台样式渲染 Markdown（不保存）。
+-- 48. 顺手补的：个人信息页支持「修改密码」（留空不改）；消息接口参数非法返回 400 而不是 500。
+
+-- ================================================================
+-- 【第九批：性能优化 —— 索引补齐】
+--
+-- 背景：用 EXPLAIN 实测发现 9 处查询没有合适索引，会出现
+--       Using filesort（排序要落盘）或 type=ALL（整表扫描）。
+--       当前数据量小（文章 12 篇）感觉不出来，但这是**为上线后数据增长做准备**。
+--
+-- ⚠️ 全部用 information_schema 判断后再执行，可重复运行。
+-- ================================================================
+
+-- 49. post：首页列表（最高频）
+--     ⚠️ 列顺序是照着**真实 SQL** 定的：首页排序是 `pinned DESC, publish_time DESC`，
+--        所以 pinned 必须排在 publish_time 前面，否则索引覆盖不了排序、照样 Using filesort。
+--     实测：EXPLAIN 显示 key=idx_list、Extra=Using index（无 filesort）。
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='post' AND index_name='idx_list');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE post ADD INDEX idx_list (deleted, status, pinned, publish_time)',
+  'SELECT ''post.idx_list 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 50. post：用户主页 / 作者页
+--     真实 SQL 是 `WHERE deleted=0 AND status=1 AND author_id=? ORDER BY id DESC`，
+--     排序键 id 是主键、被二级索引隐含带上，所以这三列就够（实测无 filesort）。
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='post' AND index_name='idx_author');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE post ADD INDEX idx_author (author_id, deleted, status)',
+  'SELECT ''post.idx_author 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 51. post：系列页（排序是 publish_time ASC，所以 publish_time 要在最后）
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='post' AND index_name='idx_series');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE post ADD INDEX idx_series (series_id, deleted, status, publish_time)',
+  'SELECT ''post.idx_series 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 52. post：定时发布任务（**每分钟执行一次**，原状 scheduled_at 无索引）
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='post' AND index_name='idx_sched');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE post ADD INDEX idx_sched (status, scheduled_at)',
+  'SELECT ''post.idx_sched 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 53. post_tag：标签页要「按 tag 反查文章」，原状只有 (post_id, tag_id) 主键，反查用不上
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='post_tag' AND index_name='idx_tag');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE post_tag ADD INDEX idx_tag (tag_id, post_id)',
+  'SELECT ''post_tag.idx_tag 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 54. comment：首页侧栏「最新评论」（原状 type=ALL 全表扫描 + filesort）
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='comment' AND index_name='idx_status_time');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE comment ADD INDEX idx_status_time (status, create_time)',
+  'SELECT ''comment.idx_status_time 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 55. comment：文章下的评论列表（原状排序要 filesort）
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='comment' AND index_name='idx_post_status');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE comment ADD INDEX idx_post_status (post_id, status, create_time)',
+  'SELECT ''comment.idx_post_status 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 56. user：找回密码按邮箱查（原状 type=ALL）
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='user' AND index_name='idx_email');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE user ADD INDEX idx_email (email)',
+  'SELECT ''user.idx_email 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 57. subscribe：退订按 token 查（原状 type=ALL）
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE table_schema='blog' AND table_name='subscribe' AND index_name='idx_token');
+SET @ddl := IF(@c = 0,
+  'ALTER TABLE subscribe ADD INDEX idx_token (token)',
+  'SELECT ''subscribe.idx_token 已存在''');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 58. 【可选，默认注释】删掉已被 idx_post_status 覆盖的旧索引 idx_post
+--     （它的列 post_id 是新索引的前缀，属于冗余，只占空间、拖慢写入，不影响功能）
+--     放开前请确认：无其他查询单独依赖 idx_post（当前代码里没有）
+-- ALTER TABLE comment DROP INDEX idx_post;
+
+-- ================================================================
+
+-- ================================================================
+-- 五、忘记管理员密码时怎么找回
+-- ================================================================
+-- 背景：密码在库里是 BCrypt 哈希，不能直接把明文写进去，也不能解密。
+--       所以忘记密码只能「用一个新密码的哈希覆盖掉旧的」。
+--
+-- 用法：
+--   1) 临时把下面那句 UPDATE 取消注释（或直接复制到客户端里执行）；
+--   2) 执行后管理员密码会被重置为 admin123；
+--   3) 立刻登录后台，在「个人信息」里改成你自己的强密码。
+--
+-- 说明：下面这条哈希就是 admin123 的 BCrypt 哈希（$2a$10$ 开头，已校验可用）。
+--       哈希每次重新生成都不一样，但都能校验通过，所以直接用这条即可。
+-- ================================================================
+-- UPDATE `user` SET `password` = '$2a$10$K3wn5siEUzkQSfy6r0Y/.ePsbkmGjZcQz3uqEt0uxxTfyVeY3yDrK'
+-- WHERE `username` = 'admin';
+
+-- 如果想重置成其它密码，用项目自带的工具生成哈希：
+--   在 demo 目录下执行（把路径里的 你的用户名 换成实际的）
+--   java -cp "C:/Users/你的用户名/.m2/repository/org/springframework/security/spring-security-crypto/6.5.0/spring-security-crypto-6.5.0.jar;C:/Users/你的用户名/.m2/repository/commons-logging/commons-logging/1.2/commons-logging-1.2.jar" tools/GenHash.java 你的新密码
+--   然后把输出的 HASH 替换到上面的 SET 里。（工具源码见 demo/tools/GenHash.java）
+
+-- 如果没有管理员账号（比如刚建库还没建号）：
+--   参考本节往下「六、管理员账号不再自动创建」，执行 tools/create-admin.sql 手动创建。
+-- ================================================================
+
+-- ================================================================
+-- 六、管理员账号不再自动创建（重要变更）
+-- ================================================================
+-- 变更内容：后端启动时**不再自动创建 admin 账号**，也**不再自动修改任何账号的角色**。
+--
+-- 原因：程序自动建号等于把「进来就能拿最高权限」的入口写进代码里，
+--       一旦默认密码被猜到、或代码被公开，站点会被直接接管。
+--
+-- 现在创建管理员只有一条路：手动执行 SQL。脚本见 demo/tools/create-admin.sql，核心就一句：
+--
+-- INSERT INTO `user` (`username`, `password`, `nickname`, `avatar`, `email`, `role`)
+-- SELECT 'admin',
+--        '$2a$10$K3wn5siEUzkQSfy6r0Y/.ePsbkmGjZcQz3uqEt0uxxTfyVeY3yDrK',  -- admin123
+--        '管理员', '', '', 'ADMIN'
+-- WHERE NOT EXISTS (SELECT 1 FROM `user` WHERE `username` = 'admin');
+--
+-- 换成自己的密码：用 demo/tools/GenHash.java 生成哈希后替换上面的值。
+--
+-- 另外：启动时如果 JWT 密钥仍是占位符，控制台会打印安全告警。
+--      真实密钥请写在 application-local.yml 的 blog.jwt.secret
+--      （该文件已加入 .gitignore，不会提交），或用环境变量 BLOG_JWT_SECRET。
+-- ================================================================

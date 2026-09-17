@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.SensitiveWordMapper">
+
+    <select id="listAllWords" resultType="string">
+        SELECT word FROM sensitive_word ORDER BY id
+    </select>
+
+    <select id="list" resultType="SensitiveWord">
+        SELECT id, word, create_time FROM sensitive_word
+        <where>
+            <if test="keyword != null and keyword != ''">
+                word LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM sensitive_word
+        <where>
+            <if test="keyword != null and keyword != ''">
+                word LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+        </where>
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM sensitive_word
+    </select>
+
+    <!-- 用 INSERT IGNORE：重复添加同一个词不会报错（表上有唯一索引） -->
+    <insert id="insert">
+        INSERT IGNORE INTO sensitive_word (word) VALUES (#{word})
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM sensitive_word WHERE id = #{id}
+    </delete>
+
+</mapper>

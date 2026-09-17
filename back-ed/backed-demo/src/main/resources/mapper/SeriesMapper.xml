@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.SeriesMapper">
+
+    <select id="list" resultType="Series">
+        SELECT s.*, COUNT(p.id) AS post_count
+        FROM series s
+        LEFT JOIN post p ON p.series_id = s.id AND p.deleted = 0 AND p.status = 1
+        GROUP BY s.id
+        ORDER BY s.sort ASC, s.id ASC
+    </select>
+
+    <select id="findById" resultType="Series">
+        SELECT * FROM series WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO series (name, description, sort) VALUES (#{name}, #{description}, #{sort})
+    </insert>
+
+    <update id="update">
+        UPDATE series
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="sort != null">sort = #{sort},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="detachPosts">
+        UPDATE post SET series_id = NULL WHERE series_id = #{seriesId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM series WHERE id = #{id}
+    </delete>
+</mapper>

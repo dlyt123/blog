@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.CategoryMapper">
+
+    <select id="list" resultType="Category">
+        SELECT c.*, COUNT(p.id) AS post_count
+        FROM category c
+        LEFT JOIN post p ON p.category_id = c.id AND p.status = 1 AND p.deleted = 0
+        GROUP BY c.id
+        ORDER BY c.sort ASC, c.id ASC
+    </select>
+
+    <select id="findById" resultType="Category">
+        SELECT * FROM category WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO category (name, slug, parent_id, sort)
+        VALUES (#{name}, #{slug}, #{parentId}, #{sort})
+    </insert>
+
+    <update id="update">
+        UPDATE category
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="slug != null">slug = #{slug},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="sort != null">sort = #{sort},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM category WHERE id = #{id}
+    </delete>
+
+</mapper>

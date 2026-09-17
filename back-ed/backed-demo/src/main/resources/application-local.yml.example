@@ -1,0 +1,66 @@
+# ================================================================
+# 本地私有配置模板（application-local.yml.example）
+#
+# 用法：把本文件复制为同目录下的 application-local.yml，然后填写真实值。
+#      application-local.yml 已加入 .gitignore，不会被提交。
+#
+# 不改这个文件也能启动，但会连不上数据库（密码为空）。
+# ================================================================
+
+spring:
+  datasource:
+    username: root
+    # 填你的 MySQL 密码
+    password: 你的数据库密码
+
+  # ==================== 邮件通知（可选）====================
+  # 不配也能跑：MailService 会自动跳过发送，订阅/找回密码/评论通知都不会报错，
+  # 只是「发不出邮件」。配置好之后这些功能才真正生效。
+  #
+  # 以 QQ 邮箱为例：
+  #   1) 登录 QQ 邮箱 → 设置 → 账户 → 开启「POP3/SMTP 服务」
+  #   2) 按提示生成一个 16 位的「授权码」（不是 QQ 登录密码！）
+  #   3) 把下面的 username / from 填成你的完整 QQ 邮箱，password 填授权码
+  mail:
+    host: smtp.qq.com          # 163 用 smtp.163.com；阿里云邮件推送用 smtpdm.aliyun.com
+    port: 465
+    username: 你的QQ号@qq.com
+    password: 你的16位SMTP授权码
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+
+blog:
+  jwt:
+    # 填一段随机长字符串。生成方式：
+    #   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+    # 留空或保持默认占位符时，后端启动会打印安全告警。
+    secret: 用随机串替换我
+
+  mail:
+    # 发件人邮箱，必须与上面 spring.mail.username 一致（QQ 邮箱的规则）
+    from: 你的QQ号@qq.com
+
+  alert:
+    # 站点出现 500 错误时发告警到这里；留空则不告警
+    email: 收告警的邮箱@example.com
+
+  backup:
+    # 备份目录（相对项目根目录），可用默认值 ./backups
+    dir: ./backups
+    # mysqldump 路径。Linux 服务器装了 mysql 客户端后一般走 PATH，不用配；
+    # Windows 本地开发需要写全路径，例如：
+    #   C:/Program Files/MySQL/MySQL Server 8.0/bin/mysqldump.exe
+    # mysqldump: mysqldump
+
+  # 登录保护（一般用默认值即可）
+  login:
+    max-attempts: 5
+    lock-minutes: 15
+
+  # ⚠️ 图形验证码开关：仅供本地自动化测试临时关闭，生产环境必须保持 true
+  captcha:
+    enabled: true

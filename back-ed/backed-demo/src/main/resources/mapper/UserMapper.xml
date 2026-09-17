@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.back.backeddemo.mapper.UserMapper">
+
+    <select id="findByUsername" resultType="User">
+        SELECT * FROM `user` WHERE username = #{username}
+    </select>
+
+    <select id="findById" resultType="User">
+        SELECT * FROM `user` WHERE id = #{id}
+    </select>
+
+    <!-- 找回密码：邮箱可能重复注册过，取最早那个（注册时未强制邮箱唯一） -->
+    <select id="findByEmail" resultType="User">
+        SELECT * FROM `user` WHERE email = #{email} ORDER BY id ASC LIMIT 1
+    </select>
+
+    <select id="findByResetToken" resultType="User">
+        SELECT * FROM `user`
+        WHERE reset_token = #{token} AND reset_expire IS NOT NULL AND reset_expire > NOW()
+        LIMIT 1
+    </select>
+
+    <update id="saveResetToken">
+        UPDATE `user` SET reset_token = #{token}, reset_expire = #{expire} WHERE id = #{id}
+    </update>
+
+    <update id="resetPassword">
+        UPDATE `user` SET password = #{password}, reset_token = NULL, reset_expire = NULL WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM `user` WHERE id = #{id}
+    </delete>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `user` (username, password, nickname, avatar, email, role)
+        VALUES (#{username}, #{password}, #{nickname}, #{avatar}, #{email}, #{role})
+    </insert>
+
+    <update id="update">
+        UPDATE `user`
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="role != null">role = #{role},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+</mapper>
