@@ -1,12 +1,49 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import defaultCover from '@/assets/anime-cover.webp'
 
 const props = defineProps({
   post: { type: Object, required: true }
 })
 
 const router = useRouter()
+
+/**
+ * 没设置封面的文章，自动生成一张「分类色渐变 + 标题」的封面。
+ *
+ * 为什么这么做：以前所有没封面的文章都显示同一张默认图片，
+ * 列表里十几篇长得一模一样，既不好看也没有信息量。
+ *
+ * 颜色由「分类名」做稳定哈希决定 —— 同一分类永远同一个色（不会每次刷新都变），
+ * 不同分类之间有区分度，一眼能看出这篇文章属于哪个类别。
+ * 纯 CSS 实现，不产生图片文件、不依赖任何服务。
+ */
+const COVER_THEMES = [
+  { from: '#ffd6e4', to: '#ffb3cd', ink: '#8a4a63' }, // 樱花粉
+  { from: '#d6f0fb', to: '#a8dcf5', ink: '#2f5f78' }, // 天空蓝
+  { from: '#e8e0f5', to: '#cdbfeb', ink: '#57457d' }, // 薰衣草
+  { from: '#d9f5e8', to: '#a8e6c9', ink: '#2f6b4f' }, // 薄荷绿
+  { from: '#ffe4d1', to: '#ffc9a3', ink: '#8a5330' }, // 蜜桃橙
+  { from: '#fff3cc', to: '#ffe08a', ink: '#7d6420' }  // 柠檬黄
+]
+
+function stableHash(str) {
+  let h = 0
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 31 + str.charCodeAt(i)) >>> 0
+  }
+  return h
+}
+
+const autoCoverStyle = computed(() => {
+  // 优先用分类名决定颜色；没有分类就退回文章 id，保证每篇也有稳定颜色
+  const key = props.post.categoryName || String(props.post.id || '')
+  const t = COVER_THEMES[stableHash(key) % COVER_THEMES.length]
+  return {
+    background: `linear-gradient(135deg, ${t.from} 0%, ${t.to} 100%)`,
+    color: t.ink
+  }
+})
 
 function goDetail() {
   router.push(`/posts/${props.post.id}`)
@@ -56,7 +93,12 @@ function formatTime(t) {
       </div>
     </div>
     <div class="post-cover">
-      <img :src="post.cover || defaultCover" :alt="post.title" />
+      <!-- 作者设了封面就用真图；没设就自动生成一张（见 script 里的 autoCoverStyle） -->
+      <img v-if="post.cover" :src="post.cover" :alt="post.title" />
+      <div v-else class="cover-auto" :style="autoCoverStyle">
+        <span class="cover-cat">{{ post.categoryName || '随笔' }}</span>
+        <span class="cover-title">{{ post.title }}</span>
+      </div>
     </div>
   </article>
 </template>
@@ -168,6 +210,38 @@ function formatTime(t) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* ===== 没封面时自动生成的封面 =====
+   160×110 很小，所以只放两样东西：分类名 + 标题（最多 3 行） */
+.cover-auto {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.cover-cat {
+  font-size: 11px;
+  opacity: 0.75;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cover-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ===== 手机端：封面图改到上方、整宽显示，正文占满一行 =====

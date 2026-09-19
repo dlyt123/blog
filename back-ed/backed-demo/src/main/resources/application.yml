@@ -1,15 +1,37 @@
 server:
   port: 8080
 
+  # 反向代理适配：读 Nginx 传来的 X-Forwarded-Proto / X-Forwarded-For，
+  # 让后端知道「用户实际是用 https 访问的」。
+  #
+  # ⚠️ 不配这个会踩一个很隐蔽的坑：
+  #   Nginx 终止 TLS 后转发到 http://127.0.0.1:8080，后端以为自己是 http 站点，
+  #   而浏览器发 POST 时一定会带 Origin: https://你的域名 —— 后端一对比，
+  #   把「自己的请求」误判成跨域 → 直接回 403 Invalid CORS request。
+  #   现象：GET 接口全部正常，只有 POST 挂；且 curl/Postman 复现不出来
+  #   （curl 默认不发 Origin 头）。
+  #
+  # framework = 用 Spring 的 ForwardedHeaderFilter 处理，不依赖具体容器。
+  # 本地开发没有代理头，设了也不会有任何影响。
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: backed-demo
   # 本地私有配置（数据库密码、JWT 密钥等敏感值）放在 application-local.yml，
   # 该文件已在 .gitignore 中排除，不会进版本库。
-  # optional: 表示文件不存在时也能正常启动（只是连不上库 / 用了占位密钥）。
-  # 首次拉代码请复制 application-local.yml.example 为 application-local.yml 并按需填写。
+  #
+  # ⚠️ 必须同时挂「classpath」和「文件系统」两个来源，否则服务器上读不到配置：
+  #     · classpath: → 本地 IDEA 运行 / 打包进 jar 时生效
+  #     · file:./    → 服务器上把 application-local.yml 放在 jar 同级目录时生效
+  #       （WorkingDirectory=/opt/blog/app → ./ 就是 /opt/blog/app/）
+  #     · file:./config/ → 放在 jar 同级 config/ 子目录时生效
+  #   三者都是 optional:，文件不存在也不会启动失败。
   config:
-    import: optional:classpath:application-local.yml
+    import:
+      - optional:classpath:application-local.yml
+      - optional:file:./application-local.yml
+      - optional:file:./config/application-local.yml
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true

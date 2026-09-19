@@ -15,8 +15,9 @@ const sendingTestMail = ref(false)
 
 onMounted(async () => {
   const data = (await getSettings()) || {}
-  // pageSize 在库里是字符串，这里转成数字给 el-input-number 用
-  form.value = { ...data, pageSize: Number(data.pageSize) > 0 ? Number(data.pageSize) : 10 }
+  // pageSize 在库里是字符串，这里转成数字给 el-input-number 用。
+  // police / icp 给个默认空串兜底：键不存在时 v-model 会绑不上（库里还没这行时尤其明显）
+  form.value = { icp: '', police: '', ...data, pageSize: Number(data.pageSize) > 0 ? Number(data.pageSize) : 10 }
   loadBackups()
   loadMailStatus()
 })
@@ -172,7 +173,10 @@ async function exportData() {
         <el-input v-model="form.keywords" placeholder="用逗号分隔" />
       </el-form-item>
       <el-form-item label="ICP 备案号">
-        <el-input v-model="form.icp" placeholder="显示在页脚" />
+        <el-input v-model="form.icp" placeholder="如：渝ICP备2026000000号-1（页脚自动链到工信部）" />
+      </el-form-item>
+      <el-form-item label="公安备案号">
+        <el-input v-model="form.police" placeholder="如：渝公网安备50000000000000号（页脚自动链到公安部查询页）" />
       </el-form-item>
       <el-form-item label="关于我">
         <el-input v-model="form.about" type="textarea" :rows="6" placeholder="支持 Markdown，展示在「关于」页" />

@@ -21,6 +21,8 @@ public class SettingController {
     /** 可公开的站点展示字段（登录页也要显示站点名 / Logo，所以这个接口不鉴权） */
     private static final String[] PUBLIC_KEYS = {
             "siteName", "slogan", "description", "logo", "icp", "pageSize",
+            // 公安联网备案号：和 ICP 一样必须展示在页脚，且要做成可点击链接
+            "police",
             // SEO 关键词：前端 site store 里有对应的 getter，之前漏了没返回，一并补上
             "keywords",
             // 版权声明要显示在公开的文章页底部，所以也是公开字段

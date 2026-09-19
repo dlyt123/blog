@@ -19,6 +19,17 @@ export const useSiteStore = defineStore('site', {
     description: (s) => s.info.description || '',
     keywords: (s) => s.info.keywords || '',
     icp: (s) => s.info.icp || '',
+    // 公安联网备案号（如「渝公网安备50000000000000号」）
+    police: (s) => s.info.police || '',
+    // 公安备案查询链接要用的纯数字编号（公安部平台只认编号，不认整串文字）
+    policeCode: (s) => (s.info.police || '').replace(/\D/g, ''),
+    // 公安部备案查询地址
+    policeUrl: (s) => {
+      const code = (s.info.police || '').replace(/\D/g, '')
+      return code
+        ? `https://beian.mps.gov.cn/#/query/webSearch?code=${code}`
+        : 'https://beian.mps.gov.cn/'
+    },
     logo: (s) => s.info.logo || '',
     // 文章页底部的版权声明文案（在「站点设置」里可改）
     copyright: (s) => s.info.copyright || ''

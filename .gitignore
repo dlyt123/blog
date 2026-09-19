@@ -42,3 +42,6 @@ Thumbs.db
 # application.yml 里目前带着本地开发用的数据库密码和 JWT 默认密钥。
 # 上线时请用环境变量覆盖（DB_USERNAME / DB_PASSWORD / BLOG_JWT_SECRET），
 # 不要把真实生产密码写回配置文件。
+
+# ===== 部署打包产物（含 jar 内嵌密钥 + 数据库导出，绝对不要提交）=====
+deploy-package/

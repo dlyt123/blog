@@ -269,7 +269,11 @@ function closeMenu() {
           <router-link to="/links">友情链接</router-link>
         </p>
         <p>{{ siteStore.slogan }} · {{ siteStore.siteName }}</p>
-        <p v-if="siteStore.icp" class="icp">{{ siteStore.icp }}</p>
+        <p v-if="siteStore.icp || siteStore.police" class="icp">
+          <a v-if="siteStore.icp" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">{{ siteStore.icp }}</a>
+          <span v-if="siteStore.icp && siteStore.police" class="icp-sep">·</span>
+          <a v-if="siteStore.police" :href="siteStore.policeUrl" target="_blank" rel="noopener noreferrer">{{ siteStore.police }}</a>
+        </p>
       </div>
     </footer>
 
@@ -611,6 +615,22 @@ function closeMenu() {
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--text-faint);
+}
+
+/* 备案号必须可点击（工信部 / 公安部的要求），但页脚不宜太抢眼 */
+.footer .icp a {
+  color: var(--text-faint);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer .icp a:hover {
+  color: #e04e82;
+  text-decoration: underline;
+}
+
+.footer .icp-sep {
+  margin: 0 6px;
 }
 
 /* ===== 深色模式切换按钮 ===== */

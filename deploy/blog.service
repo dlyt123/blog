@@ -12,8 +12,12 @@
 
 [Unit]
 Description=Personal Blog Backend (Spring Boot)
-After=network.target mysql.service
-Wants=mysql.service
+# ⚠️ 服务名按系统而定：
+#   · Alibaba Cloud Linux / CentOS / RHEL → mysqld.service
+#   · Ubuntu / Debian                     → mysql.service
+# 写错的话 mysql 不会先启动，后端可能连不上库（不过有 Restart 兜底）
+After=network.target mysqld.service
+Wants=mysqld.service
 
 [Service]
 Type=simple
@@ -21,18 +25,54 @@ User=blog
 Group=blog
 WorkingDirectory=/opt/blog/app
 
-# ---- 敏感配置用环境变量注入（改完记得 systemctl daemon-reload）----
+# ================================================================
+# ⚠️ 重要：环境变量的优先级 **高于** application-local.yml
+#    如果你把真实值写在 application-local.yml 里，就必须把下面同名的
+#    Environment= 行删掉或注释掉，否则占位符会"赢"，配置不生效。
+#    两种方式选一种用，不要混：
+#      方式 A：用下面的环境变量（敏感值进 systemd，文件权限 root-only）
+#      方式 B：用 application-local.yml（敏感值集中在一个文件里，推荐新手）
+# ================================================================
+
+# ---- 必填：不改这两项服务起不来 / 存在安全风险 ----
 # TODO 换成你自己的随机长串，生成方式：
 #   node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+#   或 openssl rand -base64 48
 Environment="BLOG_JWT_SECRET=CHANGE_ME_换成你的随机密钥"
 Environment="DB_USERNAME=blog_app"
 Environment="DB_PASSWORD=CHANGE_ME_换成数据库密码"
+
+# ---- 邮件通知（★ 不配的后果：找回密码功能直接失效，订阅推送/评论通知也全哑）----
+# QQ 邮箱的 password 填 16 位 SMTP 授权码，不是 QQ 登录密码。
+# 开通路径：QQ 邮箱 → 设置 → 账户 → 开启「POP3/SMTP 服务」→ 生成授权码
+Environment="MAIL_HOST=smtp.qq.com"
+Environment="MAIL_PORT=465"
+Environment="MAIL_USERNAME=CHANGE_ME_你的QQ邮箱@qq.com"
+Environment="MAIL_PASSWORD=CHANGE_ME_你的16位SMTP授权码"
+# 发件人，必须与 MAIL_USERNAME 完全一致（QQ 邮箱的规则）
+Environment="BLOG_MAIL_FROM=CHANGE_ME_你的QQ邮箱@qq.com"
+# 站点出现 500 错误时发告警到这里（留空则不告警）
+Environment="BLOG_ALERT_EMAIL=CHANGE_ME_收告警的邮箱@qq.com"
+
+# ---- 部署相关 ----
 # 部署在 Nginx 后面必须为 true，否则拿到的是代理 IP
 Environment="BLOG_TRUST_PROXY=true"
+# 数据库备份目录：必须和 deploy.sh 里建的 BACKUP_DIR 一致，
+# 否则应用会把备份写到 /opt/blog/app/backups（跟着代码目录走，不直观）
+Environment="BLOG_BACKUP_DIR=/opt/blog/backup"
+# 保留最近几个备份
+Environment="BLOG_BACKUP_KEEP=7"
+# Linux 装了 mysql-client 后直接走 PATH；若提示找不到命令，改成 /usr/bin/mysqldump
+Environment="BLOG_MYSQLDUMP=mysqldump"
+
+# ---- 可选：同源部署（Nginx 同时托管前后端）时不需要配置 CORS ----
+# 只有前后端分开在不同域名/端口时才需要：
+# Environment="BLOG_CORS_ORIGINS=https://codeeras.cn,https://www.codeeras.cn"
 
 ExecStart=/usr/bin/java -Xms256m -Xmx512m \
   -jar /opt/blog/app/blog.jar \
   --server.port=8080 \
+  --server.address=127.0.0.1 \
   --blog.upload.dir=/opt/blog/uploads/ \
   --logging.file.name=/opt/blog/logs/blog.log
 

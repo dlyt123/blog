@@ -8,9 +8,14 @@
 #   sudo chmod 600 /opt/blog/app/application-local.yml
 #
 # 说明：两种方式二选一 ——
-#   方式 A（推荐）：不改这个文件，改用 systemd 的环境变量注入（见 blog.service）
-#   方式 B：用这个文件，敏感值不写进 systemd
-# 两者同时存在时，**环境变量优先级更高**。
+#   方式 A：不改这个文件，改用 systemd 的环境变量注入（见 blog.service）
+#   方式 B（推荐新手）：用这个文件，敏感值集中放一处，
+#           systemd 里同名的 Environment= 行要删掉或注释掉
+# ⚠️ 两者同时存在时，**环境变量优先级更高**（会覆盖本文件的值，容易踩坑）
+#
+# 最快的做法：直接把你本地开发用的 application-local.yml 传上来，改两处：
+#   1) datasource.password 换成服务器的数据库密码
+#   2) blog.backup.mysqldump 那一行删掉（Linux 走 PATH 即可）
 # ================================================================
 
 spring:
@@ -18,6 +23,27 @@ spring:
     # ★ 必须用低权限账号，不要用 root
     username: blog_app
     password: 换成数据库密码
+
+  # ==================== 邮件通知（★ 强烈建议配置）====================
+  # 不配的后果：
+  #   · 「找回密码」直接失效 —— 用户忘记密码后无法自行找回
+  #   · 新文章推送订阅者、评论回复通知，全部静默失败（不报错，但发不出去）
+  #   · 站点出现 500 错误时的告警邮件也收不到
+  #
+  # QQ 邮箱的 password 是 16 位 SMTP 授权码（不是 QQ 登录密码）。
+  # 开通：QQ 邮箱 → 设置 → 账户 → 开启「POP3/SMTP 服务」→ 生成授权码
+  # 其他常见 SMTP：163 用 smtp.163.com；阿里云邮件推送用 smtpdm.aliyun.com
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: 你的发件邮箱@qq.com
+    password: 你的16位SMTP授权码
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
 
 blog:
   jwt:
@@ -27,6 +53,23 @@ blog:
     # 留空或保持默认占位符时，启动日志会打印安全告警
     secret: 换成随机密钥
     expire: 86400
+
+  # 发件人邮箱，必须与上面 spring.mail.username 完全一致（QQ 邮箱的规则）
+  mail:
+    from: 你的发件邮箱@qq.com
+
+  # 站点出现 500 错误时发告警到这里（留空则不发）
+  alert:
+    email: 收告警的邮箱@qq.com
+
+  # 数据库备份目录。必须和 deploy.sh 里建的 BACKUP_DIR 一致，
+  # 否则备份会写到 /opt/blog/app/backups（跟着代码目录走，不直观）
+  backup:
+    dir: /opt/blog/backup
+    keep: 7
+    # Linux 装了 mysql-client 后直接走 PATH；
+    # 若日志提示找不到命令，改成 /usr/bin/mysqldump
+    mysqldump: mysqldump
 
 # 生产建议：关闭 SQL 明细日志，避免日志暴涨
 logging:

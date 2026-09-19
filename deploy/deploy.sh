@@ -3,7 +3,7 @@
 # 个人博客网站 · 一键部署脚本（在服务器上执行）
 #
 # 用法：
-#   sudo ./deploy.sh --jar ./blog.jar --dist ./dist --domain example.cn
+#   sudo ./deploy.sh --jar ./blog.jar --dist ./dist --domain codeeras.cn
 #
 # 参数都可以省略，默认值见下方 CONFIG 区。
 #
@@ -31,7 +31,7 @@ BACKEND_PORT="8080"
 
 JAR_SRC="./blog.jar"
 DIST_SRC="./dist"
-DOMAIN="example.cn"
+DOMAIN="codeeras.cn"
 
 # ---------------- 解析参数 ----------------
 while [[ $# -gt 0 ]]; do
@@ -88,7 +88,19 @@ rm -rf "${WEB_DIR:?}"/*
 cp -r "$DIST_SRC"/. "$WEB_DIR"/
 
 chown -R "$RUN_USER:$RUN_USER" /opt/blog "$WEB_DIR"
-chmod 750 "$UPLOAD_DIR" "$LOG_DIR"
+
+# ⚠️ 静态文件必须让 nginx 能读（nginx 以 nginx 用户运行，不是 blog ✗）
+#    从 Windows/scp 传过来的目录权限常是 700 ✗ → nginx 403 → 前端整个白屏 ✗
+#    a+rX 的大写 X：只给目录加"进入"权限，不给普通文件加"执行"权限
+chmod -R a+rX "$WEB_DIR"
+# jar 含密钥（打包进去的 application-local.yml），收紧权限
+chmod 600 "$APP_DIR/blog.jar" 2>/dev/null || true
+
+# 上传目录：应用要写（属主 blog ✓）→ 655/755；nginx 要读 → 必须有 o+rx
+# ⚠️ 不能用 750 ✗ 那样 nginx 读不了，用户上传的图片会全部 403
+chmod 755 "$UPLOAD_DIR"
+# 日志目录只有应用自己读写，保持严一点
+chmod 750 "$LOG_DIR"
 
 # ---------------- 4. 数据库提示 ----------------
 log "检查数据库与管理员账号..."
@@ -117,17 +129,31 @@ systemctl daemon-reload
 systemctl enable blog >/dev/null 2>&1 || true
 
 # ---------------- 6. Nginx 配置 ----------------
-NGINX_FILE="/etc/nginx/sites-available/blog"
+# ⚠️ 配置目录按系统而定，放错了不生效且很难查：
+#   · Alibaba Cloud Linux / CentOS / RHEL → /etc/nginx/conf.d/blog.conf
+#     （这类系统没有 sites-available，主配置 include 的是 conf.d/*.conf）
+#   · Ubuntu / Debian                     → /etc/nginx/sites-available/blog + 软链
+if [[ -d /etc/nginx/sites-available || ! -d /etc/nginx/conf.d ]]; then
+  NGINX_FILE="/etc/nginx/sites-available/blog"
+  NGINX_DEBIAN=1
+else
+  NGINX_FILE="/etc/nginx/conf.d/blog.conf"
+  NGINX_DEBIAN=0
+fi
+
 if command -v nginx >/dev/null; then
   if [[ -f "$NGINX_FILE" ]]; then
     warn "Nginx 站点配置已存在，跳过覆盖：$NGINX_FILE"
   else
     if [[ -f "$(dirname "$0")/nginx-blog.conf" ]]; then
-      # 把示例域名替换成传入的域名
-      sed "s/example\.cn/$DOMAIN/g" "$(dirname "$0")/nginx-blog.conf" > "$NGINX_FILE"
-      mkdir -p /etc/nginx/sites-enabled
-      ln -sf "$NGINX_FILE" /etc/nginx/sites-enabled/blog
-      [[ -f /etc/nginx/sites-enabled/default ]] && rm -f /etc/nginx/sites-enabled/default
+      # 把模板里的域名替换成传入的域名（兼容 example.cn 与 codeeras.cn 两种写法）
+      sed -e "s/example\.cn/$DOMAIN/g" -e "s/codeeras\.cn/$DOMAIN/g" \
+          "$(dirname "$0")/nginx-blog.conf" > "$NGINX_FILE"
+      if [[ "$NGINX_DEBIAN" == "1" ]]; then
+        mkdir -p /etc/nginx/sites-enabled
+        ln -sf "$NGINX_FILE" /etc/nginx/sites-enabled/blog
+        [[ -f /etc/nginx/sites-enabled/default ]] && rm -f /etc/nginx/sites-enabled/default
+      fi
       log "已安装 Nginx 站点配置 → $NGINX_FILE（域名已替换为 $DOMAIN）"
     else
       warn "未找到 nginx-blog.conf，跳过 Nginx 配置"
