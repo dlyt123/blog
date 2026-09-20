@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>星光笔记</title>
+  <defs>
+    <linearGradient id="starGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff7aa8"/>
+      <stop offset="100%" stop-color="#a06cd5"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#starGrad)"/>
+  <path d="M32 11 L36.76 25.45 L51.97 25.51 L39.70 34.50 L44.34 48.99 L32 40.1 L19.66 48.99 L24.30 34.50 L12.03 25.51 L27.24 25.45 Z"
+        fill="#ffffff"/>
+</svg>
