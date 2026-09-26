@@ -81,6 +81,10 @@ public interface PostMapper {
 
     int softDelete(@Param("id") Long id);
 
+    /** 取某时间段内「最优秀」的一篇已发布文章（每日精选邮件用） */
+    Post pickDailyBest(@Param("from") java.time.LocalDateTime from,
+                       @Param("to") java.time.LocalDateTime to);
+
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
     int updatePinned(@Param("id") Long id, @Param("pinned") Integer pinned);

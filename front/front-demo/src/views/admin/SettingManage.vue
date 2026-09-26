@@ -330,20 +330,20 @@ async function exportData() {
 
 .backup-empty {
   color: var(--text-muted);
-  font-size: 13px;
-  padding: 12px 0;
+  font-size: var(--text-sm);
+  padding: var(--space-3) 0;
 }
 
 /* ===== 邮件配置自检 ===== */
 .mail-status {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #5a5a6a;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-body);
 }
 
-.ok-text { color: #3cba7a; font-weight: 600; }
-.bad-text { color: #e24b4a; font-weight: 600; }
-.mail-from { color: var(--text-muted); font-size: 12px; }
+.ok-text { color: var(--success); font-weight: 600; }
+.bad-text { color: var(--danger); font-weight: 600; }
+.mail-from { color: var(--text-muted); font-size: var(--text-xs); }
 
 .mail-test {
   display: flex;

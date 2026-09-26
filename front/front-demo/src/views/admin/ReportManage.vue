@@ -42,10 +42,10 @@ function targetLink(item) {
   <div>
     <h3 class="title">🚩 内容举报</h3>
 
-    <div class="tabs">
-      <button class="tab" :class="{ on: status === null }" @click="switchStatus(null)">全部</button>
-      <button class="tab" :class="{ on: status === 0 }" @click="switchStatus(0)">待处理</button>
-      <button class="tab" :class="{ on: status === 1 }" @click="switchStatus(1)">已处理</button>
+    <div class="tabs anime-tabs">
+      <button class="anime-tab" :class="{ on: status === null }" @click="switchStatus(null)">全部</button>
+      <button class="anime-tab" :class="{ on: status === 0 }" @click="switchStatus(0)">待处理</button>
+      <button class="anime-tab" :class="{ on: status === 1 }" @click="switchStatus(1)">已处理</button>
     </div>
 
     <el-table v-loading="loading" :data="list" stripe>
@@ -79,15 +79,20 @@ function targetLink(item) {
           <el-button v-if="row.status === 0" size="small" type="primary" plain @click="handle(row)">处理</el-button>
         </template>
       </el-table-column>
-      <template #empty><p class="empty">没有举报记录</p></template>
+      <template #empty><p class="anime-empty">🚩 没有举报记录</p></template>
     </el-table>
   </div>
 </template>
 
 <style scoped>
-.title { margin: 0 0 16px; color: var(--text-strong); }
-.tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-.tab { padding: 6px 16px; border: 1px solid var(--border-soft); border-radius: 999px; background: var(--surface); color: var(--text-body); font-size: 12px; cursor: pointer; }
-.tab.on { background: linear-gradient(135deg, #ff6b9d, #ff8fb5); border-color: transparent; color: #fff; font-weight: 600; }
-.empty { color: var(--text-muted); padding: 20px; }
+.title {
+  margin: 0 0 var(--space-4);
+  color: var(--text-strong);
+}
+
+/* 药丸本体来自全局 .anime-tab（选中态加 .on）。
+   以前这里自己写了一份 12px / 999px 的版本，和政策页的 20px 圆角对不上。 */
+.tabs {
+  margin-bottom: 14px;
+}
 </style>

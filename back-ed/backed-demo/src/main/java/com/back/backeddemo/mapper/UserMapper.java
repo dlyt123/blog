@@ -4,6 +4,7 @@ import com.back.backeddemo.entity.User;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface UserMapper {
 
@@ -15,6 +16,17 @@ public interface UserMapper {
     User findByEmail(@Param("email") String email);
 
     int insert(User user);
+
+    /** 用户列表（后台「用户管理」用） */
+    List<User> listAll();
+
+    /** 设置封号状态：banned=0 解封 / 1 封号 */
+    int updateBanned(@Param("id") Long id, @Param("banned") Integer banned,
+                     @Param("reason") String reason);
+
+    /** 设置禁言到期时间：until=null 表示解除禁言 */
+    int updateMuted(@Param("id") Long id, @Param("until") java.time.LocalDateTime until,
+                    @Param("reason") String reason);
 
     int update(User user);
 

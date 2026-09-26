@@ -4,6 +4,7 @@ import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.SensitiveWord;
 import com.back.backeddemo.mapper.SensitiveWordMapper;
 import com.back.backeddemo.service.SensitiveWordService;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.LinkedHashSet;
@@ -54,7 +55,12 @@ public class SensitiveWordController {
      * 请求体二选一：
      *   { "word": "单个词" }
      *   { "words": "词一\n词二\n词三" }   // 也支持用中英文逗号、分号、空格分隔
+     *
+     * <p>批量插入放在一个事务里：以前是循环 insert，中途遇到重复词报错时，
+     * 前面的词已经落库了 —— 用户看到「添加失败」，但词库其实被改了。
+     * 现在要么全部成功，要么一条都不动。
      */
+    @Transactional
     @PostMapping
     public Result<Map<String, Object>> add(@RequestBody Map<String, String> body) {
         Set<String> parsed = parseWords(body);
@@ -69,13 +75,16 @@ public class SensitiveWordController {
         for (String w : parsed) {
             mapper.insert(w);
         }
+        long added = mapper.countAll() - before;
+        long total = mapper.countAll();
+        // refresh 放在最后：它会把内存里的敏感词树按数据库现状重建，
+        // 放在事务的末尾可以保证「内存状态」和「即将提交的数据库状态」一致
         sensitiveWordService.refresh();
 
-        long added = mapper.countAll() - before;
         return Result.success(Map.of(
                 "submitted", parsed.size(),
                 "added", added,
-                "total", mapper.countAll()
+                "total", total
         ));
     }
 

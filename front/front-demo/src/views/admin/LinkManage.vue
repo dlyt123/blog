@@ -147,15 +147,16 @@ async function del(row) {
 .dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   flex-shrink: 0;
 }
 
-.dot.ok { background: #3cba7a; }
-.dot.bad { background: #e24b4a; }
+/* 友链存活检测的结果标记：走语义色而不是各写一个绿/红 */
+.dot.ok { background: var(--success); }
+.dot.bad { background: var(--danger); }
 
 .check-name { font-weight: 600; color: var(--text-strong); }
 .check-url { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; }
-.ok-text { color: #3cba7a; }
-.bad-text { color: #e24b4a; }
+.ok-text { color: var(--success); }
+.bad-text { color: var(--danger); }
 </style>

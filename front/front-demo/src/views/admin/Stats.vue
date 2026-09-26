@@ -54,20 +54,22 @@ function switchDays(d) {
   loadTrend()
 }
 
-// 标注每项的口径，避免和前台看到的数字对不上时产生误会
+// 标注每项的口径，避免和前台看到的数字对不上时产生误会。
+// color 直接给 CSS 变量名：这些色块是装饰性的，用变量能让它们跟着主题走
+// （暗色模式下品牌色会提亮，写死的 #ff6b9d 在深底上会显闷）。
 const cards = computed(() => [
   {
     key: 'totalPosts',
     label: '文章总数',
     icon: '📝',
-    color: '#ff6b9d',
+    color: 'var(--brand-500)',
     sub: `已发布 ${stats.value.publishedPosts ?? 0} · 草稿 ${stats.value.draftPosts ?? 0}`
   },
-  { key: 'totalComments', label: '评论数', icon: '💬', color: '#7ec8e3', sub: '含待审核 / 已驳回' },
-  { key: 'totalViews', label: '总浏览', icon: '👀', color: '#8fd3c4', sub: '全部文章的阅读量之和' },
-  { key: 'totalCategories', label: '分类数', icon: '📁', color: '#b39ddb' },
-  { key: 'totalTags', label: '标签数', icon: '🏷️', color: '#ffd98e' },
-  { key: 'totalLinks', label: '友链数', icon: '🔗', color: '#ff8fb5' }
+  { key: 'totalComments', label: '评论数', icon: '💬', color: 'var(--blue-500)', sub: '含待审核 / 已驳回' },
+  { key: 'totalViews', label: '总浏览', icon: '👀', color: 'var(--mint-500)', sub: '全部文章的阅读量之和' },
+  { key: 'totalCategories', label: '分类数', icon: '📁', color: 'var(--purple-500)' },
+  { key: 'totalTags', label: '标签数', icon: '🏷️', color: 'var(--amber-500)' },
+  { key: 'totalLinks', label: '友链数', icon: '🔗', color: 'var(--brand-400)' }
 ])
 
 // ===== PV/UV 趋势图（纯 SVG，无第三方图表库依赖）=====
@@ -127,11 +129,11 @@ const chart = computed(() => {
 
     <div class="section-head">
       <h3 class="title" style="margin: 28px 0 0">📈 访问趋势（PV / UV）</h3>
-      <div class="days-toggle">
+      <div class="days-toggle anime-tabs">
         <button
           v-for="d in [7, 30]"
           :key="d"
-          class="day-btn"
+          class="anime-tab"
           :class="{ on: trendDays === d }"
           @click="switchDays(d)"
         >近 {{ d }} 天</button>
@@ -158,12 +160,12 @@ const chart = computed(() => {
           <text :x="b.cx" :y="chart.plotH + chart.padT + 18" class="tick" text-anchor="middle">{{ b.label }}</text>
         </g>
       </svg>
-      <p v-else-if="!trendLoading" class="empty">还没有访问数据，去前台逛逛再回来看看吧～</p>
+      <p v-else-if="!trendLoading" class="anime-empty">📈 还没有访问数据，去前台逛逛再回来看看吧～</p>
     </div>
 
     <h3 class="title" style="margin-top: 28px">🧭 访问来源</h3>
     <div class="referrer-card">
-      <p v-if="!referrers.length" class="empty">还没有访问来源数据，去前台逛逛再回来看看～</p>
+      <p v-if="!referrers.length" class="anime-empty">🧭 还没有访问来源数据，去前台逛逛再回来看看～</p>
       <div v-for="r in referrers" :key="r.source" class="ref-row">
         <span class="ref-name">{{ r.source }}</span>
         <div class="ref-bar-wrap">
@@ -192,20 +194,24 @@ const chart = computed(() => {
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px;
+  gap: var(--space-4);
 }
 
+/* 卡片顶部的 4px 彩条由行内样式给色（见 cards 的 color 字段），
+   这里只提供默认值与形状 */
 .stat-card {
   background: var(--surface);
-  border-radius: 14px;
-  border-top: 4px solid #ff6b9d;
-  padding: 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  border-top: 4px solid var(--brand-500);
+  padding: var(--space-5);
   text-align: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-icon {
   font-size: 26px;
+  line-height: 1;
 }
 
 .stat-value {
@@ -214,11 +220,12 @@ const chart = computed(() => {
   font-weight: 700;
   color: var(--text-strong);
   margin: 6px 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .stat-sub {
@@ -226,47 +233,32 @@ const chart = computed(() => {
   margin-top: 6px;
   color: var(--text-faint);
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .section-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
+/* 药丸本体与间距来自全局 .anime-tabs / .anime-tab */
 .days-toggle {
-  display: flex;
-  gap: 6px;
-}
-
-.day-btn {
-  padding: 6px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-  background: var(--surface);
-  color: var(--text-body);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.day-btn.on {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  border-color: transparent;
-  color: #fff;
-  font-weight: 600;
+  flex-shrink: 0;
+  padding-bottom: var(--space-1);
 }
 
 .chart-note {
-  margin: 8px 0 14px;
+  margin: var(--space-2) 0 14px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .chart-card {
   background: var(--surface);
-  border-radius: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
   padding: 16px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   min-height: 220px;
@@ -278,49 +270,46 @@ const chart = computed(() => {
   display: block;
 }
 
+/* 图表配色也走令牌：SVG 里用 CSS 变量是合法的，
+   这样切到暗色时网格线和柱子的对比度会自动适配。 */
 .grid {
-  stroke: #f0e8ee;
+  stroke: var(--border-soft);
   stroke-width: 1;
 }
 
 .tick {
-  fill: #b0a0b0;
+  fill: var(--text-faint);
   font-size: 10px;
 }
 
 .bar-pv {
-  fill: #ff6b9d;
+  fill: var(--brand-500);
 }
 
 .bar-uv {
-  fill: #7ec8e3;
-}
-
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 60px 0;
+  fill: var(--blue-500);
 }
 
 .referrer-card {
   background: var(--surface);
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
 }
 
 .ref-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 6px 0;
 }
 
 .ref-name {
   width: 120px;
   flex-shrink: 0;
-  color: #5a5a6a;
-  font-size: 13px;
+  color: var(--text-body);
+  font-size: var(--text-sm);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -329,20 +318,21 @@ const chart = computed(() => {
 .ref-bar-wrap {
   flex: 1;
   height: 10px;
-  background: #f5eef3;
-  border-radius: 999px;
+  background: var(--surface-sunk);
+  border-radius: var(--radius-full);
   overflow: hidden;
 }
 
 .ref-bar {
   height: 100%;
-  background: linear-gradient(90deg, #ff6b9d, #ff8fb5);
-  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-500), var(--brand-400));
+  border-radius: var(--radius-full);
 }
 
 .ref-num {
   flex-shrink: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -29,17 +29,17 @@ const updatedAt = '2026 年 09 月'
       本文档适用于 {{ siteStore.siteName || '本站' }}。你注册、登录、浏览或发布内容前，请先阅读并同意以下条款。
     </p>
 
-    <div class="tabs">
+    <div class="tabs anime-tabs">
       <button
         v-for="t in TABS"
         :key="t.key"
-        class="tab"
+        class="anime-tab"
         :class="{ on: active === t.key }"
         @click="active = t.key"
       >{{ t.label }}</button>
     </div>
 
-    <div class="anime-card doc">
+    <div class="anime-card anime-card--flat doc">
       <!-- ============ 用户协议 ============ -->
       <template v-if="active === 'agreement'">
         <h3>一、服务说明</h3>
@@ -225,62 +225,39 @@ const updatedAt = '2026 年 09 月'
 .policy-wrap {
   max-width: 860px;
   margin: 0 auto;
-  padding: 24px 20px;
+  padding: var(--space-6) var(--space-5);
 }
 
 .page-title {
-  margin: 0 0 8px;
-  font-size: 24px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xl);
   color: var(--text-strong);
 }
 
 .subtitle {
-  margin: 0 0 20px;
+  margin: 0 0 var(--space-5);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.7;
 }
 
+/* 药丸本体来自全局 .anime-tab（选中态加 .on），这里只补间距 */
 .tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.tab {
-  padding: 8px 18px;
-  border: 1px solid var(--border-soft);
-  border-radius: 20px;
-  background: var(--surface);
-  color: var(--text-body);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.tab:hover {
-  color: #e04e82;
-  border-color: #ffb3cd;
-}
-
-.tab.on {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  border-color: transparent;
-  color: #fff;
-  font-weight: 600;
+  margin-bottom: var(--space-4);
 }
 
 .doc {
-  padding: 28px 32px;
+  padding: var(--space-8) var(--space-8);
   line-height: 1.9;
-  color: var(--text-strong);
-  font-size: 14px;
+  color: var(--text-body);
+  font-size: var(--text-base);
 }
 
 .doc h3 {
-  margin: 24px 0 10px;
-  font-size: 15px;
-  color: #e04e82;
+  margin: var(--space-6) 0 10px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--brand-700);
 }
 
 .doc h3:first-child {
@@ -288,11 +265,11 @@ const updatedAt = '2026 年 09 月'
 }
 
 .doc p {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
 }
 
 .doc ul {
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
   padding-left: 22px;
 }
 
@@ -304,36 +281,38 @@ const updatedAt = '2026 年 09 月'
   color: var(--text-strong);
 }
 
+/* 政策里有不少表格，别让它把移动端顶破 */
 .doc table {
   width: 100%;
   border-collapse: collapse;
-  margin: 12px 0 16px;
-  font-size: 13px;
+  margin: var(--space-3) 0 var(--space-4);
+  font-size: var(--text-sm);
 }
 
 .doc th,
 .doc td {
   border: 1px solid var(--border-soft);
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   text-align: left;
 }
 
 .doc th {
-  background: var(--surface-pink);
+  background: var(--surface-sunk);
   color: var(--text-strong);
   font-weight: 600;
 }
 
+/* 重点提示块 */
 .note {
-  background: #fff8fb;
-  border-left: 3px solid #ffb3cd;
+  background: var(--surface-pink);
+  border-left: 3px solid var(--brand-300);
   padding: 10px 14px;
-  border-radius: 0 8px 8px 0;
-  font-size: 13px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--text-sm);
 }
 
 .updated {
-  margin-top: 28px;
+  margin-top: var(--space-8);
   padding-top: 14px;
   border-top: 1px dashed var(--border-soft);
   color: var(--text-muted);
@@ -343,10 +322,8 @@ const updatedAt = '2026 年 09 月'
 
 @media (max-width: 640px) {
   .doc {
-    padding: 20px 18px;
+    padding: var(--space-5) var(--space-4);
   }
-  .tabs {
-    flex-wrap: wrap;
-  }
+  /* 药丸在窄屏会自动换行（.anime-tabs 已设 flex-wrap） */
 }
 </style>

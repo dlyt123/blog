@@ -1,5 +1,6 @@
 package com.back.backeddemo.controller;
 
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.SensitiveLog;
 import com.back.backeddemo.mapper.SensitiveLogMapper;
@@ -24,9 +25,8 @@ public class SensitiveLogController {
     @GetMapping
     public Result<Map<String, Object>> list(@RequestParam(defaultValue = "1") int page,
                                             @RequestParam(defaultValue = "20") int pageSize) {
-        int size = Math.min(Math.max(pageSize, 1), 100);
-        int p = Math.max(page, 1);
-        List<SensitiveLog> list = mapper.list((p - 1) * size, size);
+        PageQuery pq = PageQuery.of(page, pageSize);
+        List<SensitiveLog> list = mapper.list(pq.offset(), pq.size());
         return Result.success(Map.of(
                 "list", list,
                 "total", mapper.count()

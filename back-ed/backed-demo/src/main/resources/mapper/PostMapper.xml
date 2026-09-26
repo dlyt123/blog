@@ -229,8 +229,9 @@
 
     <!-- ===== 后台写操作 ===== -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO post (title, summary, content, cover, category_id, author_id, series_id, status, pinned, recommended, publish_time, scheduled_at)
-        VALUES (#{title}, #{summary}, #{content}, #{cover}, #{categoryId}, #{authorId}, #{seriesId}, #{status}, #{pinned}, #{recommended}, #{publishTime}, #{scheduledAt})
+        INSERT INTO post (title, summary, content, cover, category_id, author_id, series_id, status, pinned, recommended, publish_time, scheduled_at, audit_status, audit_remark)
+        VALUES (#{title}, #{summary}, #{content}, #{cover}, #{categoryId}, #{authorId}, #{seriesId}, #{status}, #{pinned}, #{recommended}, #{publishTime}, #{scheduledAt},
+                IFNULL(#{auditStatus}, 0), #{auditRemark})
     </insert>
 
     <update id="update">
@@ -245,6 +246,8 @@
             <if test="status != null">status = #{status},</if>
             <if test="pinned != null">pinned = #{pinned},</if>
             <if test="recommended != null">recommended = #{recommended},</if>
+            <if test="auditStatus != null">audit_status = #{auditStatus},</if>
+            <if test="auditRemark != null">audit_remark = #{auditRemark},</if>
             <if test="publishTime != null">publish_time = #{publishTime},</if>
             scheduled_at = #{scheduledAt},
         </set>
@@ -352,5 +355,30 @@
     <delete id="hardDeleteComments">
         DELETE FROM comment WHERE post_id = #{id}
     </delete>
+
+    <!--
+      每日精选：取某个时间段内「最优秀」的一篇已发布文章。
+      排序规则（和作者确认过）：
+        ① 置顶优先（说明作者认为它最重要）
+        ② 其次按 点赞数 + 评论数×3 —— 评论比点赞更需要成本，权重给高些
+        ③ 再并列就取最新发布的
+      只返回一篇；没有符合条件的返回 null。
+    -->
+    <select id="pickDailyBest" resultType="Post">
+        SELECT p.*
+        FROM post p
+        WHERE p.status = 1
+          AND p.deleted = 0
+          AND p.publish_time IS NOT NULL
+          AND p.publish_time &gt;= #{from}
+          AND p.publish_time &lt; #{to}
+        ORDER BY p.pinned DESC,
+                 (IFNULL(p.likes, 0) + 3 * (
+                     SELECT COUNT(*) FROM comment c
+                     WHERE c.post_id = p.id AND (c.status IS NULL OR c.status = 1)
+                 )) DESC,
+                 p.publish_time DESC
+        LIMIT 1
+    </select>
 
 </mapper>

@@ -759,7 +759,7 @@ defineExpose({ focus })
 
 <style scoped>
 .md-editor {
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface);
 }
@@ -770,7 +770,7 @@ defineExpose({ focus })
   align-items: center;
   gap: 2px;
   padding: 6px 8px;
-  background: #faf6f9;
+  background: var(--surface-soft);
   border-bottom: 1px solid var(--border-soft);
   flex-wrap: wrap;
 }
@@ -780,17 +780,18 @@ defineExpose({ focus })
   height: 28px;
   padding: 0 7px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: transparent;
-  color: #5a5a6a;
-  font-size: 13px;
+  color: var(--text-body);
+  font-size: var(--text-sm);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
 }
 
 .md-tool:hover:not(:disabled) {
   background: var(--surface-pink);
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .md-tool:disabled {
@@ -806,7 +807,7 @@ defineExpose({ focus })
 .md-divider {
   width: 1px;
   height: 16px;
-  background: #eddfe6;
+  background: var(--border-soft);
   margin: 0 5px;
 }
 
@@ -815,19 +816,21 @@ defineExpose({ focus })
 }
 
 .md-tool.mode {
-  font-size: 12px;
+  font-size: var(--text-xs);
   padding: 0 10px;
 }
 
+/* 当前生效的格式 / 视图模式。
+   --brand-100 在暗色下会翻转成深玫红，浅色和暗色都能和工具栏底色区分开。 */
 .md-tool.mode.on {
-  background: #ffe3ed;
-  color: #e04e82;
+  background: var(--brand-100);
+  color: var(--brand-700);
   font-weight: 600;
 }
 
 .md-tool.on {
-  background: #ffe3ed;
-  color: #e04e82;
+  background: var(--brand-100);
+  color: var(--brand-700);
 }
 
 /* 表格「行 × 列」选择面板 */
@@ -840,11 +843,11 @@ defineExpose({ focus })
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 30;
+  z-index: var(--z-dropdown);
   background: var(--surface);
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(224, 78, 130, 0.18);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
   padding: 10px;
   user-select: none;
 }
@@ -863,23 +866,25 @@ defineExpose({ focus })
 .md-picker-cell {
   width: 16px;
   height: 16px;
-  border: 1px solid #eddde5;
+  border: 1px solid var(--border-soft);
   border-radius: 2px;
   background: var(--surface-soft);
   cursor: pointer;
 }
 
+/* 选中格用实心品牌色：这个 16px 的小方块必须一眼可辨，
+   用深色边框在暗色模式下会糊成一片。 */
 .md-picker-cell.on {
-  background: #ffb3cd;
-  border-color: #ff6b9d;
+  background: var(--brand-500);
+  border-color: var(--brand-400);
 }
 
 .md-picker-tip {
-  margin-top: 8px;
+  margin-top: var(--space-2);
   text-align: center;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .md-picker-hint {
@@ -895,13 +900,13 @@ defineExpose({ focus })
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  background: #fff8fb;
+  background: var(--surface-soft);
   border-bottom: 1px solid var(--border-soft);
 }
 
 .md-tt-label {
-  font-size: 12px;
-  color: #e04e82;
+  font-size: var(--text-xs);
+  color: var(--brand-700);
   font-weight: 600;
   margin-right: 4px;
 }
@@ -913,13 +918,14 @@ defineExpose({ focus })
 .md-tt-btn {
   height: 26px;
   padding: 0 10px;
-  border: 1px solid #ffb3cd;
-  border-radius: 6px;
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-xs);
   background: var(--surface);
-  color: #e04e82;
-  font-size: 12px;
+  color: var(--brand-700);
+  font-size: var(--text-xs);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
 }
 
 .md-tt-btn:hover {
@@ -927,12 +933,12 @@ defineExpose({ focus })
 }
 
 .md-tt-btn.danger {
-  border-color: #e8b8c8;
-  color: #c05070;
+  border-color: rgba(212, 71, 92, 0.3);
+  color: var(--danger);
 }
 
 .md-tt-btn.danger:hover {
-  background: #fdf0f4;
+  background: var(--danger-soft);
 }
 
 /* 主体 */
@@ -949,12 +955,12 @@ defineExpose({ focus })
 .md-input {
   width: 100%;
   min-height: inherit;
-  padding: 16px;
+  padding: var(--space-4);
   border: none;
   outline: none;
   resize: none;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
   line-height: 1.7;
   color: var(--text-strong);
   background: var(--surface);
@@ -967,7 +973,7 @@ defineExpose({ focus })
 
 .md-preview {
   min-height: inherit;
-  padding: 16px;
+  padding: var(--space-4);
   /* 纵向跟随编辑区；横向用于宽表格滚动 */
   overflow: auto;
   background: var(--surface);
@@ -976,19 +982,19 @@ defineExpose({ focus })
 
 .md-preview-empty {
   color: var(--text-faint);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 /* 状态栏 */
 .md-footer {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: center;
-  padding: 6px 12px;
-  background: #faf6f9;
+  padding: 6px var(--space-3);
+  background: var(--surface-soft);
   border-top: 1px solid var(--border-soft);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .md-tip {
@@ -999,17 +1005,19 @@ defineExpose({ focus })
   display: none;
 }
 
-/* 预览区内容样式（复用全局 .markdown-body，这里只补代码块底色） */
+/* 预览区内容样式（复用全局 .markdown-body，这里只对齐代码块与表格）。
+   代码块底色是全站统一的深色面，两种主题下都保持高对比 —— 和正文页一致。 */
 .md-preview :deep(pre) {
   background: #2d2a3a;
   color: #e8e8f0;
-  padding: 14px;
-  border-radius: 8px;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
   overflow-x: auto;
+  box-shadow: var(--shadow-md);
 }
 
 .md-preview :deep(code) {
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 0.9em;
 }
 
@@ -1027,18 +1035,18 @@ defineExpose({ focus })
 /* 列数多时给单元格保底宽度，超出部分由预览区横向滚动 */
 .md-preview :deep(th),
 .md-preview :deep(td) {
-  border: 1px solid #e8d8e8;
-  padding: 8px 12px;
+  border: 1px solid var(--border-soft);
+  padding: var(--space-2) var(--space-3);
   min-width: 80px;
 }
 
 .md-preview :deep(th) {
-  background: #ffe3ed;
+  background: var(--brand-100);
 }
 
 .md-preview :deep(img) {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 @media (max-width: 900px) {

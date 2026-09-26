@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import { getConversations, getChat, sendMessage } from '@/api'
@@ -16,6 +16,98 @@ const loading = ref(false)
 const sending = ref(false)
 const listRef = ref(null)
 
+/* ===== 定时拉取（轮询）=====
+   本站没有 WebSocket / SSE，所以用轮询模拟"实时收到消息"。
+
+   之前的问题：只有 onMounted、切会话、发送后各拉一次，
+   所以对方发来的消息必须刷新页面、或自己也发一条才看得到。
+
+   现在的策略：
+     · 当前会话消息  每 4 秒拉一次 → 对方发来的会自动出现
+     · 会话列表      每 10 秒拉一次 → 新会话和未读角标会更新
+     · 页面切到后台时暂停（省流量也省服务器），切回来立即刷一次
+
+   ⚠️ 后端 GET /messages/with/{id} 会【顺带把消息标记为已读】，
+      所以轮询只在会话打开期间跑 —— 这正好符合"打开着就是在看"的语义，
+      不会出现"人在别的页面、消息却被悄悄标成已读"的情况。 */
+const CHAT_INTERVAL = 4000
+const CONV_INTERVAL = 10000
+let chatTimer = null
+let convTimer = null
+
+function startPolling() {
+  stopPolling()
+  chatTimer = setInterval(pollChat, CHAT_INTERVAL)
+  convTimer = setInterval(pollConversations, CONV_INTERVAL)
+}
+
+function stopPolling() {
+  if (chatTimer) {
+    clearInterval(chatTimer)
+    chatTimer = null
+  }
+  if (convTimer) {
+    clearInterval(convTimer)
+    convTimer = null
+  }
+}
+
+/** 拉当前会话的消息；只有真的变了才更新 */
+async function pollChat() {
+  // 正在加载 / 正在发送时不插手，避免和它们抢着覆盖 messages
+  if (!current.value || loading.value || sending.value || document.hidden) {
+    return
+  }
+  try {
+    const data = await getChat(current.value.id, { page: 1, pageSize: 100 })
+    const list = data.list || []
+    // 条数没变就什么都不做 —— 避免无意义的重渲染，
+    // 也避免打断用户正在阅读历史消息时的滚动位置
+    if (list.length === messages.value.length) {
+      return
+    }
+    const atBottom = isNearBottom()
+    messages.value = list
+    // 只有当用户本来就停在底部时才自动滚下去，
+    // 否则会把正在翻旧消息的人硬拽到底部
+    if (atBottom) {
+      scrollToBottom()
+    }
+  } catch (e) {
+    // 轮询失败静默处理：网络抖一下就弹提示会很烦，下一轮会自己恢复
+  }
+}
+
+/** 拉会话列表（新会话 + 未读角标） */
+async function pollConversations() {
+  if (document.hidden) {
+    return
+  }
+  try {
+    conversations.value = (await getConversations()) || []
+  } catch (e) {
+    // 同上，静默
+  }
+}
+
+/** 用户当前是否停在底部附近 */
+function isNearBottom() {
+  const el = listRef.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 60
+}
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    stopPolling()
+  } else {
+    // 切回来的瞬间先补一次，再恢复轮询
+    pollConversations()
+    pollChat()
+    startPolling()
+  }
+}
+
 onMounted(async () => {
   await loadConversations()
   // 从用户主页点「发私信」过来：直接打开与 TA 的会话
@@ -26,6 +118,14 @@ onMounted(async () => {
   } else if (conversations.value.length) {
     openChat(conversations.value[0])
   }
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  startPolling()
+})
+
+onUnmounted(() => {
+  // 离开页面必须清掉定时器和监听，否则会一直偷偷发请求
+  stopPolling()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
 const myId = () => userStore.userInfo?.id
@@ -102,7 +202,7 @@ function formatTime(t) {
     <h2 class="page-title anime-title">✉️ 私信</h2>
 
     <div
-      class="chat-layout anime-card"
+      class="chat-layout anime-card anime-card--flat"
       :class="{ 'has-current': !!current, 'is-empty': !conversations.length }"
     >
       <!-- 左：会话列表 -->
@@ -117,7 +217,9 @@ function formatTime(t) {
           :key="c.otherId"
           class="conv-item"
           :class="{ active: current && current.id === c.otherId }"
+          tabindex="0"
           @click="openChat(c)"
+          @keydown.enter="openChat(c)"
         >
           <div class="conv-avatar">
             <img v-if="c.otherAvatar" :src="c.otherAvatar" alt="" />
@@ -159,13 +261,13 @@ function formatTime(t) {
           <footer class="chat-input">
             <input
               v-model="input"
-              class="msg-input"
+              class="anime-input msg-input"
               type="text"
               maxlength="500"
               placeholder="输入消息，回车发送"
               @keyup.enter="send"
             />
-            <button class="send-btn" :disabled="sending || !input.trim()" @click="send">
+            <button class="anime-btn anime-btn--primary send-btn" :disabled="sending || !input.trim()" @click="send">
               {{ sending ? '发送中' : '发送' }}
             </button>
           </footer>
@@ -181,84 +283,267 @@ function formatTime(t) {
 </template>
 
 <style scoped>
-.page-title { margin: 0 0 16px; font-size: 24px; color: var(--text-strong); }
+.page-title {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-2xl);
+  color: var(--text-strong);
+}
+
+/* 聊天主体：一张固定高度的卡片，左右两栏各自滚动。
+   卡片本身不参与 .anime-card 的悬停上浮（整个面板会晃），所以是 --flat。 */
 .chat-layout {
   display: flex;
   height: 620px;
   padding: 0;
   overflow: hidden;
 }
+
+/* ---------- 左栏：会话列表 ---------- */
 .conv-list {
   width: 260px;
   flex-shrink: 0;
   border-right: 1px solid var(--border-soft);
   overflow-y: auto;
 }
-.conv-empty { text-align: center; padding: 40px 16px; color: var(--text-muted); font-size: 13px; }
-.conv-empty-icon { font-size: 32px; margin: 0 0 8px; }
-.conv-empty-hint { font-size: 12px; color: var(--text-faint); margin: 6px 0 0; }
+
+.conv-empty {
+  text-align: center;
+  padding: var(--space-10) var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.conv-empty-icon {
+  font-size: 32px;
+  margin: 0 0 var(--space-2);
+}
+
+.conv-empty-hint {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  margin: var(--space-2) 0 0;
+  line-height: 1.6;
+}
+
 .conv-item {
-  display: flex; gap: 10px; padding: 12px 14px; cursor: pointer;
-  border-bottom: 1px solid #faf3f7; transition: background 0.2s;
+  display: flex;
+  gap: 10px;
+  padding: var(--space-3) 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-softer);
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
-.conv-item:hover { background: var(--surface-pink); }
-.conv-item.active { background: var(--surface-pink); }
+
+.conv-item:hover {
+  background: var(--surface-pink);
+}
+
+.conv-item.active {
+  background: var(--surface-pink);
+  box-shadow: inset 3px 0 0 var(--brand-500);
+}
+
 .conv-avatar {
-  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb); color: #fff; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; font-size: 15px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
+  /* 浅色渐变底用品牌深色字，白字在这里读不出来 */
+  color: var(--brand-800);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-md);
 }
-.conv-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.conv-main { flex: 1; min-width: 0; }
-.conv-top { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
-.conv-name { font-size: 14px; color: var(--text-strong); font-weight: 600; }
-.conv-time { font-size: 11px; color: var(--text-faint); flex-shrink: 0; }
-.conv-bottom { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 3px; }
+
+.conv-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.conv-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.conv-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.conv-name {
+  font-size: var(--text-base);
+  color: var(--text-strong);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conv-time {
+  font-size: 11px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
 .conv-last {
-  font-size: 12px; color: var(--text-muted); overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
 .conv-badge {
-  background: #ff6b9d; color: #fff; font-size: 11px; border-radius: 999px;
-  padding: 1px 6px; flex-shrink: 0;
+  background: var(--brand-500);
+  color: var(--text-on-brand);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+  padding: 1px 6px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
-.chat-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ---------- 右栏：聊天区 ---------- */
+.chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .chat-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px; border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
 }
-.chat-name { font-weight: 600; color: var(--text-strong); }
-.chat-profile { font-size: 12px; color: #e04e82; }
-.chat-body { flex: 1; overflow-y: auto; padding: 18px; background: #fdfafc; }
-.msg-row { margin-bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; }
-.msg-row.mine { align-items: flex-end; }
+
+.chat-name {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.chat-profile {
+  font-size: var(--text-xs);
+  color: var(--brand-700);
+  flex-shrink: 0;
+}
+
+.chat-profile:hover {
+  text-decoration: underline;
+}
+
+.chat-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  background: var(--surface-soft);
+}
+
+.msg-row {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.msg-row.mine {
+  align-items: flex-end;
+}
+
+/* 气泡：靠"缺一个角"来暗示说话人，比只换颜色更直观 */
 .msg-bubble {
-  max-width: 70%; padding: 9px 13px; border-radius: 12px; font-size: 14px;
-  line-height: 1.6; word-break: break-word; white-space: pre-wrap;
-  background: var(--surface); color: var(--text-strong); border: 1px solid #f2e6ee;
+  max-width: 70%;
+  padding: 9px 13px;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-xs);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  word-break: break-word;
+  white-space: pre-wrap;
+  background: var(--surface);
+  color: var(--text-strong);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-xs);
 }
+
 .msg-row.mine .msg-bubble {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5); color: #fff; border-color: transparent;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-400));
+  color: var(--text-on-brand);
+  border-color: transparent;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-xs) var(--radius-lg);
+  box-shadow: var(--shadow-brand);
 }
-.msg-time { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
-.chat-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 40px 0; }
-.chat-input { display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border-soft); }
+
+.msg-time {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  padding: var(--space-10) 0;
+}
+
+.chat-input {
+  display: flex;
+  gap: 10px;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* 输入框与发送按钮的外观都来自全局（.anime-input / .anime-btn--primary），
+   本地只定尺寸 —— 以前这里又写了一份自己的粉色渐变，和全站主按钮不是一套。 */
 .msg-input {
-  flex: 1; height: 40px; padding: 0 14px; border: 1px solid var(--border-soft);
-  border-radius: 10px; font-size: 14px; outline: none;
+  flex: 1;
+  min-width: 0;
+  /* 覆盖全局 .anime-input 的 width: 100%：
+     在 flex 行里 100% + flex:1 会让输入框顶破容器 */
+  width: auto;
 }
-.msg-input:focus { border-color: #e04e82; }
+
 .send-btn {
-  width: 84px; height: 40px; border: none; border-radius: 10px; color: #fff;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5); font-size: 14px;
-  font-weight: 600; cursor: pointer;
+  width: 84px;
+  flex-shrink: 0;
 }
-.send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .chat-placeholder {
-  flex: 1; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; color: var(--text-muted); font-size: 13px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
 }
-.ph-icon { font-size: 40px; margin: 0 0 10px; }
+
+.ph-icon {
+  font-size: 40px;
+  margin: 0;
+}
 
 /* 返回按钮只在手机上出现 */
 .chat-back {
@@ -267,7 +552,7 @@ function formatTime(t) {
   background: transparent;
   font-size: 20px;
   line-height: 1;
-  color: #e04e82;
+  color: var(--brand-700);
   cursor: pointer;
   padding: 0 8px 0 0;
 }
@@ -277,8 +562,8 @@ function formatTime(t) {
    改成：默认显示会话列表；选了会话就整屏显示聊天，用「←」返回。 */
 @media (max-width: 768px) {
   .page-title {
-    font-size: 20px;
-    margin-bottom: 12px;
+    font-size: var(--text-xl);
+    margin-bottom: var(--space-3);
   }
 
   .chat-layout {
@@ -319,7 +604,7 @@ function formatTime(t) {
   }
 
   .chat-header {
-    padding: 12px 14px;
+    padding: var(--space-3) 14px;
   }
 
   .chat-body {
@@ -331,7 +616,7 @@ function formatTime(t) {
   }
 
   .chat-input {
-    padding: 10px 12px;
+    padding: 10px var(--space-3);
   }
 
   .send-btn {

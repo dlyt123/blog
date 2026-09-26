@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { getPosts, getTags, getAbout, getPopularPosts, getRecentComments } from '@/api'
 import { useSiteStore } from '@/store/site'
 import PostCard from '@/components/PostCard.vue'
+import SkeletonPostList from '@/components/SkeletonPostList.vue'
 // hero 背景图改由 <style> 里的 background-image 引用（这样暗色模式能覆盖），
 // 所以这里不再需要 import heroImg。
 import { useRouter } from 'vue-router'
@@ -133,9 +134,13 @@ function plain(text) {
           </div>
         </div>
 
-        <div v-loading="loading">
-          <PostCard v-for="post in posts" :key="post.id" :post="post" />
-          <p v-if="!loading && !posts.length" class="empty">还没有文章呢～</p>
+        <!-- 首屏用骨架屏；翻页时列表已有内容，才交给 v-loading 的遮罩 -->
+        <div :aria-busy="loading" v-loading="loading && posts.length > 0">
+          <SkeletonPostList v-if="loading && !posts.length" :count="3" />
+          <template v-else>
+            <PostCard v-for="post in posts" :key="post.id" :post="post" />
+            <p v-if="!posts.length" class="anime-empty">📝 还没有文章呢～</p>
+          </template>
         </div>
 
         <div v-if="total > pageSize" class="pagination">
@@ -163,7 +168,13 @@ function plain(text) {
         <div class="side-card">
           <h3 class="side-title">🔥 热门文章</h3>
           <ol v-if="popular.length" class="hot-list">
-            <li v-for="(p, i) in popular" :key="p.id" @click="goPost(p.id)">
+            <li
+              v-for="(p, i) in popular"
+              :key="p.id"
+              tabindex="0"
+              @click="goPost(p.id)"
+              @keydown.enter="goPost(p.id)"
+            >
               <span class="hot-rank" :class="{ top: i < 3 }">{{ i + 1 }}</span>
               <span class="hot-title">{{ p.title }}</span>
               <span class="hot-views">{{ p.views }}</span>
@@ -176,13 +187,15 @@ function plain(text) {
         <div class="side-card">
           <h3 class="side-title">🏷️ 标签云</h3>
           <div v-if="tags.length" class="tag-cloud">
-            <span
+            <!-- 用 button：标签是筛选控件，键盘 Tab/Enter 应当可达 -->
+            <button
               v-for="t in tags"
               :key="t.id"
+              type="button"
               class="cloud-tag"
               :style="tagStyle(t)"
               @click="goTag(t.name)"
-            >{{ t.name }}<em v-if="t.postCount"> {{ t.postCount }}</em></span>
+            >{{ t.name }}<em v-if="t.postCount"> {{ t.postCount }}</em></button>
           </div>
           <p v-else class="side-empty">暂无标签</p>
         </div>
@@ -191,7 +204,13 @@ function plain(text) {
         <div class="side-card">
           <h3 class="side-title">💬 最新评论</h3>
           <ul v-if="recentComments.length" class="comment-list">
-            <li v-for="c in recentComments" :key="c.id" @click="goPost(c.postId)">
+            <li
+              v-for="c in recentComments"
+              :key="c.id"
+              tabindex="0"
+              @click="goPost(c.postId)"
+              @keydown.enter="goPost(c.postId)"
+            >
               <span class="comment-user">{{ c.nickname || '匿名' }}</span>
               <span class="comment-text">{{ plain(c.content) }}</span>
               <span class="comment-post">《{{ c.postTitle }}》</span>
@@ -207,9 +226,9 @@ function plain(text) {
 <style scoped>
 .hero {
   position: relative;
-  border-radius: 18px;
-  padding: 52px 32px;
-  margin-bottom: 24px;
+  border-radius: var(--radius-xl);
+  padding: var(--space-12) var(--space-8);
+  margin-bottom: var(--space-6);
   background-size: cover;
   background-position: center;
   overflow: hidden;
@@ -227,18 +246,19 @@ function plain(text) {
 
 .hero-title {
   margin: 0 0 10px;
-  font-size: 32px;
-  /* 原来用 #e04e82 配浅粉底，对比度偏低；改用更深的玫红 */
-  color: #c2266b;
+  font-size: var(--text-4xl);
+  /* 700 级才是白底上 AA 达标的品牌文字色（这里底是浅粉渐变，同理） */
+  color: var(--brand-700);
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 
 .hero-subtitle {
   margin: 0;
-  color: #55556a;
-  font-size: 15px;
+  color: var(--text-body);
+  font-size: var(--text-md);
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
 }
 
@@ -251,12 +271,13 @@ function plain(text) {
   gap: 14px;
   font-size: 28px;
   opacity: 0.5;
+  pointer-events: none; /* 纯装饰，别挡住文字或截走点击 */
 }
 
 /* ===== 双栏布局 ===== */
 .home-layout {
   display: flex;
-  gap: 20px;
+  gap: var(--space-5);
   align-items: flex-start;
 }
 
@@ -270,7 +291,7 @@ function plain(text) {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .list-head {
@@ -282,7 +303,8 @@ function plain(text) {
 
 .list-title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-lg);
+  font-weight: 600;
   color: var(--text-strong);
 }
 
@@ -294,59 +316,65 @@ function plain(text) {
 .sort-btn {
   padding: 5px 14px;
   border: 1px solid var(--border-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--surface);
   color: var(--text-body);
-  font-size: 12px;
+  font-size: var(--text-xs);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
 }
 
 .sort-btn:hover {
-  color: #e04e82;
-  border-color: #ffb3cd;
+  color: var(--brand-700);
+  border-color: var(--border-brand);
 }
 
+/* 选中态：跟主按钮用同一套"渐变 + 内高光 + 辉光"的语言 */
 .sort-btn.on {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-400));
   border-color: transparent;
-  color: #fff;
+  color: var(--text-on-brand);
   font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 4px 12px -6px rgba(255, 107, 157, 0.8);
 }
 
 /* ===== 侧边栏卡片 ===== */
 .side-card {
   background: var(--surface);
   border: 1px solid var(--border-soft);
-  border-radius: 14px;
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
 }
 
 .side-title {
-  margin: 0 0 12px;
-  font-size: 14px;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
   font-weight: 600;
   color: var(--text-strong);
-  padding-bottom: 8px;
+  padding-bottom: var(--space-2);
   border-bottom: 1px dashed var(--border-soft);
 }
 
 .about-text {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   color: var(--text-body);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.7;
 }
 
 .side-more {
-  color: #e04e82;
-  font-size: 12px;
+  color: var(--brand-700);
+  font-size: var(--text-xs);
 }
 
 .side-empty {
   margin: 0;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-xs);
   text-align: center;
   padding: 10px 0;
 }
@@ -360,39 +388,41 @@ function plain(text) {
 .hot-list li {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 6px 0;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .hot-list li:hover .hot-title {
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .hot-rank {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  border-radius: 5px;
-  background: #f0e8ee;
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunk);
   color: var(--text-muted);
   font-size: 11px;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .hot-rank.top {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-400));
+  color: var(--text-on-brand);
+  box-shadow: 0 2px 6px -2px rgba(255, 107, 157, 0.9);
 }
 
 .hot-title {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
-  color: #5a5a6a;
+  font-size: var(--text-sm);
+  color: var(--text-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -413,20 +443,25 @@ function plain(text) {
 .cloud-tag {
   padding: 3px 10px;
   background: var(--surface-pink);
-  color: #e04e82;
-  border-radius: 999px;
+  color: var(--brand-700);
+  border-radius: var(--radius-full);
+  /* 作为 <button> 渲染：清掉默认边框与字体，避免尺寸和别的页面不一致 */
+  border: none;
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
   line-height: 1.6;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
 }
 
 .cloud-tag:hover {
-  background: #ffd6e4;
+  transform: translateY(-1px);
+  background: var(--brand-200);
 }
 
 .cloud-tag em {
   font-style: normal;
-  color: #c98aa8;
+  color: var(--text-muted);
   font-size: 11px;
 }
 
@@ -438,9 +473,9 @@ function plain(text) {
 
 .comment-list li {
   padding: 7px 0;
-  border-bottom: 1px dashed #f7f0f4;
+  border-bottom: 1px dashed var(--border-softer);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.6;
 }
 
@@ -449,11 +484,11 @@ function plain(text) {
 }
 
 .comment-list li:hover .comment-text {
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .comment-user {
-  color: #e04e82;
+  color: var(--brand-700);
   font-weight: 600;
   margin-right: 4px;
 }
@@ -471,13 +506,7 @@ function plain(text) {
 .pagination {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
-}
-
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 40px;
+  margin-top: var(--space-5);
 }
 
 @media (max-width: 900px) {

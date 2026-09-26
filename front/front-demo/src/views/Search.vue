@@ -3,11 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { searchPosts } from '@/api'
 import PostCard from '@/components/PostCard.vue'
+import SkeletonPostList from '@/components/SkeletonPostList.vue'
 
 const route = useRoute()
 const keyword = ref(route.query.keyword || '')
 const posts = ref([])
 const searched = ref(false)
+const loading = ref(false)
 
 onMounted(() => {
   if (keyword.value) {
@@ -17,9 +19,14 @@ onMounted(() => {
 
 async function doSearch() {
   if (!keyword.value.trim()) return
-  const data = await searchPosts({ keyword: keyword.value, page: 1, pageSize: 20 })
-  posts.value = data.list
-  searched.value = true
+  loading.value = true
+  try {
+    const data = await searchPosts({ keyword: keyword.value, page: 1, pageSize: 20 })
+    posts.value = data.list
+    searched.value = true
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -40,28 +47,25 @@ async function doSearch() {
       </el-input>
     </div>
 
-    <div v-if="searched">
+    <div v-if="searched || loading" :aria-busy="loading">
       <h3 class="anime-title" style="margin-bottom: 14px">搜索结果</h3>
-      <PostCard v-for="p in posts" :key="p.id" :post="p" />
-      <p v-if="!posts.length" class="empty">没有找到相关文章～</p>
+      <SkeletonPostList v-if="loading && !posts.length" :count="2" />
+      <template v-else>
+        <PostCard v-for="p in posts" :key="p.id" :post="p" />
+        <p v-if="!posts.length" class="anime-empty">🔍 没有找到相关文章～</p>
+      </template>
     </div>
   </div>
 </template>
 
 <style scoped>
 .page-title {
-  margin: 0 0 20px;
-  font-size: 24px;
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-2xl);
   color: var(--text-strong);
 }
 
 .search-bar {
-  margin-bottom: 24px;
-}
-
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 40px;
+  margin-bottom: var(--space-6);
 }
 </style>

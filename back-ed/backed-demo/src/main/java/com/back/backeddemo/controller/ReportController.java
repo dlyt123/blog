@@ -4,6 +4,7 @@ import com.back.backeddemo.common.BusinessException;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.Report;
 import com.back.backeddemo.mapper.ReportMapper;
+import com.back.backeddemo.service.SensitiveWordService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,9 +21,11 @@ import java.util.Map;
 public class ReportController {
 
     private final ReportMapper reportMapper;
+    private final SensitiveWordService sensitiveWordService;
 
-    public ReportController(ReportMapper reportMapper) {
+    public ReportController(ReportMapper reportMapper, SensitiveWordService sensitiveWordService) {
         this.reportMapper = reportMapper;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     /** 提交举报 */
@@ -41,6 +44,8 @@ public class ReportController {
         if (reason != null && reason.length() > 200) {
             reason = reason.substring(0, 200);
         }
+        // 举报理由也是用户输入的文字，同样过敏感词
+        sensitiveWordService.validate(reason, "提交举报");
 
         Report r = new Report();
         r.setTargetType(targetType);

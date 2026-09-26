@@ -64,7 +64,7 @@ async function submit() {
           <label>确认新密码</label>
           <input v-model="form.confirm" type="password" class="anime-input" placeholder="再输一次" />
         </div>
-        <button type="submit" class="btn" :disabled="loading">
+        <button type="submit" class="anime-btn anime-btn--primary anime-btn--lg anime-btn--block" :disabled="loading">
           {{ loading ? '提交中...' : '确认重置' }}
         </button>
       </form>
@@ -75,26 +75,70 @@ async function submit() {
 </template>
 
 <style scoped>
-.wrap { display: flex; justify-content: center; padding: 60px 20px 40px; min-height: 70vh; }
-.card { width: 420px; padding: 40px 36px; }
-.title { text-align: center; color: #e04e82; margin: 0 0 24px; font-size: 22px; }
-.form-item { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
-.form-item label { font-size: 13px; color: #6a6a7a; }
-.anime-input {
-  width: 100%; height: 42px; padding: 0 14px; border: 1px solid var(--border-soft);
-  border-radius: 10px; font-size: 14px; outline: none; box-sizing: border-box;
+.wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-10) var(--space-5) var(--space-8);
+  min-height: 70vh;
 }
-.anime-input:focus { border-color: #e04e82; box-shadow: 0 0 0 3px rgba(224, 78, 130, 0.1); }
-.btn {
-  width: 100%; height: 44px; border: none; border-radius: 10px; color: #fff;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5); font-size: 15px;
-  font-weight: 600; cursor: pointer;
+
+.card {
+  width: 420px;
+  padding: var(--space-10) var(--space-8);
 }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.done { text-align: center; }
-.done-icon { font-size: 42px; margin: 0 0 12px; }
-.done-text { color: #5a5a6a; margin: 0 0 8px; }
-.done-hint { color: var(--text-muted); font-size: 13px; margin: 0; }
-.hint { text-align: center; margin: 20px 0 0; font-size: 13px; }
-.link { color: #e04e82; font-weight: 600; }
+
+.title {
+  text-align: center;
+  color: var(--brand-700);
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+}
+
+.form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-4);
+}
+
+.form-item label {
+  font-size: var(--text-sm);
+  color: var(--text-body);
+}
+
+/* 输入框和提交按钮的外观都来自全局类（.anime-input / .anime-btn--primary），
+   本页不再重复定义，避免"同一个控件在不同页面长得不一样"。 */
+
+.done {
+  text-align: center;
+}
+
+.done-icon {
+  font-size: 42px;
+  line-height: 1;
+  margin: 0 0 var(--space-3);
+}
+
+.done-text {
+  color: var(--text-strong);
+  margin: 0 0 var(--space-2);
+}
+
+.done-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.hint {
+  text-align: center;
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-sm);
+}
+
+.link {
+  color: var(--brand-700);
+  font-weight: 600;
+}
 </style>

@@ -65,23 +65,58 @@ async function confirmUnsubscribe() {
       <div v-else class="done">
         <p class="done-text">确认要退订吗？</p>
         <p class="done-hint">退订后，<b>{{ info.email }}</b> 将不再收到新文章通知。</p>
-        <button class="btn danger" @click="confirmUnsubscribe">确认退订</button>
+        <button class="anime-btn anime-btn--danger-solid anime-btn--lg anime-btn--block" @click="confirmUnsubscribe">确认退订</button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.wrap { display: flex; justify-content: center; padding: 60px 20px 40px; min-height: 70vh; }
-.card { width: 440px; padding: 40px 36px; }
-.title { text-align: center; color: #e04e82; margin: 0 0 24px; font-size: 22px; }
-.done { text-align: center; }
-.done-icon { font-size: 42px; margin: 0 0 12px; }
-.done-text { color: #5a5a6a; margin: 0 0 10px; font-size: 15px; }
-.done-hint { color: var(--text-muted); font-size: 13px; margin: 4px 0; line-height: 1.7; }
-.btn {
-  margin-top: 22px; width: 100%; height: 44px; border: none; border-radius: 10px;
-  font-size: 15px; font-weight: 600; cursor: pointer; color: #fff;
+.wrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-10) var(--space-5) var(--space-8);
+  min-height: 70vh;
 }
-.btn.danger { background: linear-gradient(135deg, #e24b4a, #ef6b6a); }
+
+.card {
+  width: 440px;
+  padding: var(--space-10) var(--space-8);
+}
+
+.title {
+  text-align: center;
+  color: var(--brand-700);
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+}
+
+.done {
+  text-align: center;
+}
+
+.done-icon {
+  font-size: 42px;
+  line-height: 1;
+  margin: 0 0 var(--space-3);
+}
+
+.done-text {
+  color: var(--text-strong);
+  margin: 0 0 10px;
+  font-size: var(--text-md);
+}
+
+.done-hint {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 4px 0;
+  line-height: 1.7;
+}
+
+/* 确认退订按钮的外观来自全局 .anime-btn--danger-solid，这里只补间距 */
+.done .anime-btn {
+  margin-top: var(--space-5);
+}
 </style>

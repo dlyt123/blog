@@ -3,6 +3,7 @@ package com.back.backeddemo.controller;
 import com.back.backeddemo.common.BusinessException;
 import com.back.backeddemo.common.ImageUtil;
 import com.back.backeddemo.common.Result;
+import com.back.backeddemo.config.AdminExempt;
 import com.back.backeddemo.entity.Media;
 import com.back.backeddemo.entity.User;
 import com.back.backeddemo.mapper.MediaMapper;
@@ -25,10 +26,11 @@ import java.util.UUID;
  *
  * 权限说明（重要）：
  *   - 上传 POST /api/admin/media：**任何已登录用户**都可以（写文章要插图）
+ *     → 方法上标 @AdminExempt，主动豁免「/api/admin/** 默认要求管理员」这条规则
  *   - 列表 GET 与删除 DELETE：**仅管理员**
  *     （列表能看到全站图片，删除会影响别人文章里引用的图）
- *   因为「上传」和「列表 / 删除」权限不同，无法用 AdminOnlyInterceptor 按路径统一拦截，
- *   所以在方法里显式判断角色。
+ *     → 不标豁免，所以会被 AdminOnlyInterceptor 拦一道，
+ *       方法内的 requireAdmin 是第二道，两层都在
  */
 @RestController
 @RequestMapping("/api/admin/media")
@@ -53,6 +55,11 @@ public class MediaController {
         this.userMapper = userMapper;
     }
 
+    /**
+     * 上传图片。任何已登录用户都可以（写文章要插图），
+     * 所以这里豁免管理员校验；文件类型 / 大小 / 路径穿越的校验在下面照做。
+     */
+    @AdminExempt
     @PostMapping
     public Result<Map<String, String>> upload(@RequestParam("file") MultipartFile file) {
         if (file == null || file.isEmpty()) {

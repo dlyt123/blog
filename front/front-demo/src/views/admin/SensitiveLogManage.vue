@@ -56,7 +56,7 @@ function formatTime(t) {
       <el-table-column label="时间" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
       </el-table-column>
-      <template #empty><p class="empty">还没有命中记录，说明敏感词没拦住过任何内容～</p></template>
+      <template #empty><p class="anime-empty anime-empty--inline">📋 还没有命中记录，说明敏感词没拦住过任何内容～</p></template>
     </el-table>
 
     <div v-if="total > pageSize" class="pager">
@@ -69,7 +69,6 @@ function formatTime(t) {
 <style scoped>
 .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .title { margin: 0; color: var(--text-strong); }
-.tip { margin: 0 0 14px; color: var(--text-muted); font-size: 12px; }
-.empty { color: var(--text-muted); padding: 20px; }
-.pager { display: flex; justify-content: center; margin-top: 16px; }
+.tip { margin: 0 0 14px; color: var(--text-muted); font-size: var(--text-xs); }
+.pager { display: flex; justify-content: center; margin-top: var(--space-4); }
 </style>

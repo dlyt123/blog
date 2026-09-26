@@ -706,3 +706,156 @@ WHERE NOT EXISTS (SELECT 1 FROM (SELECT 1 FROM `setting` WHERE `setting_key` = '
 --   mysqldump -uroot -p --single-transaction --routines blog \
 --     > /opt/blog/backup/blog_before_launch_$(date +%Y%m%d%H%M).sql
 -- ================================================================
+
+
+-- ================================================================
+-- 第十二批：封禁/禁言 + 文章先审后发
+--
+-- 特点：幂等（可重复执行）—— MySQL 没有 ADD COLUMN IF NOT EXISTS，
+--       所以用 information_schema 先查列是否存在，再决定要不要 ALTER。
+--
+-- 新增字段说明：
+--   user.banned        0=正常  1=已封号（封号后无法登录、无法做任何操作）
+--   user.muted_until   禁言到期时间；NULL=未禁言；早于当前时间=已自动解除
+--   user.ban_reason    封禁/禁言原因（可选，给管理员自己看）
+--   post.audit_status  0=无需审核/已通过  1=待审核  2=已驳回
+--   post.audit_remark  审核备注（驳回时填写，作者能看到）
+-- ================================================================
+
+USE `blog`;
+
+-- ---------- 1) user.banned ----------
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'banned');
+SET @s := IF(@c = 0,
+  'ALTER TABLE `user` ADD COLUMN `banned` TINYINT(1) NOT NULL DEFAULT 0 COMMENT ''0=正常 1=已封号''',
+  'SELECT ''user.banned 已存在，跳过'' AS skipped');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- ---------- 2) user.muted_until ----------
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'muted_until');
+SET @s := IF(@c = 0,
+  'ALTER TABLE `user` ADD COLUMN `muted_until` DATETIME NULL DEFAULT NULL COMMENT ''禁言到期时间，NULL=未禁言''',
+  'SELECT ''user.muted_until 已存在，跳过'' AS skipped');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- ---------- 3) user.ban_reason ----------
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'ban_reason');
+SET @s := IF(@c = 0,
+  'ALTER TABLE `user` ADD COLUMN `ban_reason` VARCHAR(200) NULL DEFAULT NULL COMMENT ''封禁或禁言原因''',
+  'SELECT ''user.ban_reason 已存在，跳过'' AS skipped');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- ---------- 4) post.audit_status ----------
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post' AND COLUMN_NAME = 'audit_status');
+SET @s := IF(@c = 0,
+  'ALTER TABLE `post` ADD COLUMN `audit_status` TINYINT(4) NOT NULL DEFAULT 0 COMMENT ''0=无需审核/已通过 1=待审核 2=已驳回''',
+  'SELECT ''post.audit_status 已存在，跳过'' AS skipped');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- ---------- 5) post.audit_remark ----------
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post' AND COLUMN_NAME = 'audit_remark');
+SET @s := IF(@c = 0,
+  'ALTER TABLE `post` ADD COLUMN `audit_remark` VARCHAR(500) NULL DEFAULT NULL COMMENT ''审核备注/驳回理由''',
+  'SELECT ''post.audit_remark 已存在，跳过'' AS skipped');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- ---------- 6) 待审核文章查询用的索引 ----------
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post' AND INDEX_NAME = 'idx_post_audit');
+SET @s := IF(@c = 0,
+  'CREATE INDEX `idx_post_audit` ON `post` (`audit_status`, `deleted`)',
+  'SELECT ''idx_post_audit 已存在，跳过'' AS skipped');
+PREPARE st FROM @s; EXECUTE st; DEALLOCATE PREPARE st;
+
+-- ---------- 7) 既有数据：全部视为「已通过」，不受影响 ----------
+UPDATE `post` SET `audit_status` = 0 WHERE `audit_status` <> 0;
+UPDATE `user` SET `banned` = 0 WHERE `banned` <> 0;
+
+-- ---------- 8) 结果确认 ----------
+SELECT
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user'
+      AND COLUMN_NAME IN ('banned','muted_until','ban_reason')) AS user新字段数,
+  (SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'post'
+      AND COLUMN_NAME IN ('audit_status','audit_remark')) AS post新字段数;
+
+-- ---------- 9) 站点地址（邮件里的重置密码/退订链接要用它）----------
+-- ⚠️ 不设这个的话，找回密码邮件里的链接会指向 http://localhost:8080
+--    用户点开当然打不开。以后换域名，这里也要同步改。
+INSERT INTO setting (setting_key, setting_value) VALUES ('siteUrl', 'https://codeeras.cn')
+  ON DUPLICATE KEY UPDATE setting_value = IF(setting_value IS NULL OR setting_value = '', VALUES(setting_value), setting_value);
+
+-- ---------- 10) 「关于」页内容
+-- ⚠️ 下面用的是占位邮箱 contact@example.com，部署后请在后台「站点设置 → 关于我」改成真实邮箱（含公示的联系邮箱 ✗ 安全评估要求）----------
+-- ⚠️ 安全评估报告里承诺了「已在关于页公示联系方式」✓ 不写这条线上关于页会是空白 ✓
+-- 以后可在后台「站点设置 → 关于我」自行修改（支持 Markdown）✓
+INSERT INTO setting (setting_key, setting_value) VALUES ('about',
+'## 关于本站
+
+**星光笔记** —— 记录代码与热爱。
+
+一个记录技术与日常的个人博客，主要分享后端开发、数据库，
+以及在实际项目中踩过的坑。
+
+## 联系方式
+
+- 站长：刘希疆
+- 邮箱：contact@example.com
+
+如需交流、合作，或有任何意见与建议，欢迎邮件联系。
+
+## 投诉与举报
+
+本站每篇文章详情页与每条评论处均设有「举报」按钮，
+登录后点击即可提交举报并填写理由，我会及时核实处理。
+
+你也可以直接发送邮件至 **contact@example.com** 进行投诉举报、
+侵权通知或意见反馈。
+
+## 内容声明
+
+本博客文章除特别注明外均为原创，采用「署名-非商业性使用-相同方式共享 4.0 国际」许可协议，
+转载请注明出处。如发现站内内容侵犯了您的权益或有违规内容，请通过上述邮箱联系我，
+我会在核实后尽快处理。
+')
+ON DUPLICATE KEY UPDATE setting_value = IF(setting_value IS NULL OR setting_value = '', VALUES(setting_value), setting_value);
+
+
+-- ================================================================
+-- 第十三批：后端结构整治（分页归一化 / 鉴权默认拒绝 / 补事务边界）
+--
+-- ⚠️ 本批**没有任何表结构变更**，也没有需要执行的 DDL。
+--    整段都是说明 + 一条可选的清理语句，不改数据库也能跑。
+--    写在这里是为了让「代码改动」和「SQL 变更记录」保持在同一处。
+-- ================================================================
+
+-- ---------- 1) 无 DDL 变更 ----------
+-- 改动是纯代码层面的：
+--   · common/PageQuery.java（新增）          分页参数归一化，只此一处
+--   · config/AdminExempt.java（新增）        「豁免管理员校验」注解
+--   · config/AdminOnlyInterceptor.java       改为按 /api/admin/** 前缀 + 注解豁免
+--   · config/WebConfig.java                  删掉原来手写的十几条路径清单
+--   · service/InteractionService.java（新增）点赞/收藏 + @Transactional
+--   · controller/InteractionController.java  改为调用 Service
+--   · common/GlobalExceptionHandler.java     补 400 处理（multipart / 文件过大）
+--   · PostService / CommentService / 各 Controller：分页统一过 PageQuery
+
+-- ---------- 2)【可选清理】本次联调产生的操作日志 ----------
+-- 说明：验证接口时用临时 token 调过 PUT /api/admin/settings、
+--       POST /api/admin/media（非 multipart 的 400 探测），
+--       OperationLogInterceptor 如实记了 4 条，id 为 95~98。
+--       这些不是业务数据，留着只是让操作日志里混进几条测试记录。
+-- ⚠️ 破坏性语句，默认注释掉；确认要清再手动放开执行。
+-- DELETE FROM operation_log WHERE id IN (95, 96, 97, 98);
+
+-- ---------- 3）上线前自查（只读，不改数据）----------
+-- 确认没有残留的测试数据：
+SELECT '操作日志条数' AS 项, COUNT(*) AS 值 FROM operation_log
+UNION ALL SELECT '访客记录条数', COUNT(*) FROM visit_log
+UNION ALL SELECT '敏感词命中条数', COUNT(*) FROM sensitive_log;

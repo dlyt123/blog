@@ -236,10 +236,10 @@ function cancel() {
               class="hidden-file"
               @change="onCoverChange"
             />
-            <button class="anime-btn ghost" :disabled="uploadingCover" @click="pickCover">
+            <button class="anime-btn anime-btn--secondary" :disabled="uploadingCover" @click="pickCover">
               {{ uploadingCover ? '上传中...' : (form.cover ? '重新选择' : '选择封面图片') }}
             </button>
-            <button v-if="form.cover" class="anime-btn plain" @click="clearCover">移除封面</button>
+            <button v-if="form.cover" class="anime-btn anime-btn--ghost" @click="clearCover">移除封面</button>
             <p class="cover-hint">支持 jpg / png / gif / webp，单张不超过 5MB</p>
           </div>
         </div>
@@ -278,12 +278,12 @@ function cancel() {
             clearable
           />
         </div>
-        <button class="anime-btn primary" :disabled="saving" @click="save(true)">
+        <button class="anime-btn anime-btn--primary" :disabled="saving" @click="save(true)">
           {{ saving ? '提交中...' : (form.scheduledAt ? '设定时发布' : (isEdit ? '更新并发布' : '发布文章')) }}
         </button>
-        <button class="anime-btn ghost" :disabled="saving" @click="save(false)">存为草稿</button>
-        <button class="anime-btn plain" type="button" @click="previewVisible = true">👁 预览</button>
-        <button class="anime-btn plain" :disabled="saving" @click="cancel">取消</button>
+        <button class="anime-btn anime-btn--secondary" :disabled="saving" @click="save(false)">存为草稿</button>
+        <button class="anime-btn anime-btn--ghost" type="button" @click="previewVisible = true">👁 预览</button>
+        <button class="anime-btn anime-btn--ghost" :disabled="saving" @click="cancel">取消</button>
       </div>
     </div>
 
@@ -302,77 +302,67 @@ function cancel() {
 .write-wrap {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 24px 20px;
+  padding: var(--space-6) var(--space-5);
 }
 
 .write-card {
-  padding: 28px;
+  padding: var(--space-8);
 }
 
 .write-title {
-  color: #e04e82;
-  margin: 0 0 22px;
-  font-size: 22px;
+  color: var(--brand-700);
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .field {
-  margin-bottom: 18px;
+  margin-bottom: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
 .field label {
-  font-size: 13px;
-  color: #6a6a7a;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-body);
 }
 
+/* "必填"是状态信息，不是品牌装饰，用语义危险色 */
 .field .req {
-  color: #e04e82;
+  color: var(--danger);
 }
 
 .field .hint {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
+  font-weight: 400;
   margin-left: 6px;
 }
 
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
-.anime-input {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-  background: var(--surface);
-  resize: vertical;
-}
-
-.anime-input:focus {
-  border-color: #e04e82;
-  box-shadow: 0 0 0 3px rgba(224, 78, 130, 0.1);
-}
+/* 输入框外观统一由全局 .anime-input 提供。
+   这里以前又整块重写了一遍（圆角/边框/聚焦都一样，只有 padding 不同），
+   因为 scoped 特异性 +1 会盖住全局规则，于是本页的输入框和别处不一样。已删除。 */
 
 /* 封面 */
 .cover-row {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: flex-start;
 }
 
 .cover-preview {
   width: 200px;
   height: 120px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--border-soft);
   background: var(--surface-soft);
@@ -390,20 +380,20 @@ function cancel() {
 
 .cover-placeholder {
   color: var(--text-faint);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .cover-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: flex-start;
 }
 
 .cover-hint {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 /* ===== 手机端：封面预览与按钮改成上下排 =====
@@ -412,7 +402,7 @@ function cancel() {
 @media (max-width: 640px) {
   .cover-row {
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-3);
   }
 
   .cover-preview {
@@ -437,14 +427,14 @@ function cancel() {
 /* 编辑器容器 */
 .editor-wrap {
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .actions {
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -462,8 +452,8 @@ function cancel() {
 }
 
 .preview-title {
-  margin: 0 0 18px;
-  font-size: 24px;
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-2xl);
   color: var(--text-strong);
   text-align: center;
   line-height: 1.5;
@@ -472,46 +462,11 @@ function cancel() {
 .preview-empty {
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
-  padding: 24px 0;
+  font-size: var(--text-sm);
+  padding: var(--space-6) 0;
 }
 
-.anime-btn {
-  height: 40px;
-  padding: 0 20px;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.anime-btn.primary {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-}
-
-.anime-btn.ghost {
-  background: var(--surface-pink);
-  color: #e04e82;
-  border: 1px solid #ffb3cd;
-}
-
-.anime-btn.plain {
-  background: var(--surface);
-  color: #888;
-  border: 1px solid var(--border-soft);
-}
-
-.anime-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.anime-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* 按钮外观统一由全局的 .anime-btn 提供（src/styles/anime.css），本页不再自己实现。 */
 
 @media (max-width: 720px) {
   .field-row {

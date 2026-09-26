@@ -1,5 +1,6 @@
 package com.back.backeddemo.controller;
 
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.Comment;
@@ -19,13 +20,13 @@ public class CommentController {
         this.commentService = commentService;
     }
 
-    /** 前台评论列表（顶层分页） */
+    /** 前台评论列表（顶层分页）。一次最多 50 条，避免有人拉全量评论 */
     @GetMapping("/api/posts/{id}/comments")
     public Result<PageResult<Comment>> list(@PathVariable Long id,
                                             @RequestParam(defaultValue = "1") int page,
                                             @RequestParam(defaultValue = "10") int pageSize) {
-        int size = Math.min(Math.max(pageSize, 1), 50);
-        return Result.success(commentService.listByPost(id, page, size));
+        PageQuery pq = PageQuery.of(page, pageSize, 50);
+        return Result.success(commentService.listByPost(id, pq.page(), pq.size()));
     }
 
     /** 最新评论（公开，首页侧边栏用） */

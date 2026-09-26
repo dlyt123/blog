@@ -1,5 +1,6 @@
 package com.back.backeddemo.controller;
 
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.OperationLog;
 import com.back.backeddemo.mapper.OperationLogMapper;
@@ -27,10 +28,9 @@ public class OperationLogController {
     public Result<Map<String, Object>> list(@RequestParam(defaultValue = "1") int page,
                                             @RequestParam(defaultValue = "20") int pageSize,
                                             @RequestParam(required = false) String keyword) {
-        int size = Math.min(Math.max(pageSize, 1), 100);
-        int p = Math.max(page, 1);
+        PageQuery pq = PageQuery.of(page, pageSize);
         String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
-        List<OperationLog> list = mapper.list(kw, (p - 1) * size, size);
+        List<OperationLog> list = mapper.list(kw, pq.offset(), pq.size());
         return Result.success(Map.of(
                 "list", list,
                 "total", mapper.count(kw)

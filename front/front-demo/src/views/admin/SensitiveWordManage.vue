@@ -117,7 +117,7 @@ function formatTime(t) {
         </template>
       </el-table-column>
       <template #empty>
-        <p class="empty">词库是空的，点击右上角「添加敏感词」开始维护～</p>
+        <p class="anime-empty anime-empty--inline">🚫 词库是空的，点击右上角「添加敏感词」开始维护～</p>
       </template>
     </el-table>
 
@@ -170,20 +170,15 @@ function formatTime(t) {
 }
 
 .pill {
-  padding: 5px 12px;
+  padding: 5px var(--space-3);
   background: var(--surface-pink);
-  border-radius: 999px;
-  font-size: 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
   color: var(--text-body);
 }
 
 .pill b {
-  color: #e04e82;
-}
-
-.empty {
-  color: var(--text-muted);
-  padding: 20px;
+  color: var(--brand-700);
 }
 
 .dialog-tip {

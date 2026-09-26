@@ -76,7 +76,7 @@ async function remove(item) {
         </template>
       </el-table-column>
       <template #empty>
-        <p class="empty">还没有订阅者～</p>
+        <p class="anime-empty anime-empty--inline">📮 还没有订阅者～</p>
       </template>
     </el-table>
   </div>
@@ -99,12 +99,7 @@ async function remove(item) {
 .tip {
   margin: 0 0 18px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.7;
-}
-
-.empty {
-  color: var(--text-muted);
-  padding: 20px;
 }
 </style>

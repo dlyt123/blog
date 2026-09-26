@@ -38,6 +38,31 @@
         VALUES (#{username}, #{password}, #{nickname}, #{avatar}, #{email}, #{role})
     </insert>
 
+    <!-- ===== 后台「用户管理」用 ===== -->
+
+    <select id="listAll" resultType="User">
+        SELECT id, username, nickname, avatar, email, role, create_time,
+               banned, muted_until, ban_reason
+        FROM `user`
+        ORDER BY id ASC
+    </select>
+
+    <!-- 封号 / 解封。banned=1 时写入原因；解封时清空原因 -->
+    <update id="updateBanned">
+        UPDATE `user`
+        SET banned = #{banned},
+            ban_reason = #{reason}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 禁言 / 解除。until 传 NULL 即为解除。注意不要动 banned 字段 -->
+    <update id="updateMuted">
+        UPDATE `user`
+        SET muted_until = #{until},
+            ban_reason = #{reason}
+        WHERE id = #{id}
+    </update>
+
     <update id="update">
         UPDATE `user`
         <set>

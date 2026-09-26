@@ -51,12 +51,14 @@ function changeSize(size) {
   load()
 }
 
+// color 字段以前在这里写死了一组色值，但模板从没用过（.stat-value 统一走品牌色），
+// 属于会误导人以为「卡片是彩色的」的死代码，已删除。
 const cards = computed(() => [
-  { label: '今日访问量', value: stats.value.todayPv ?? 0, icon: '👀', color: '#ff6b9d' },
-  { label: '今日访客数', value: stats.value.todayUv ?? 0, icon: '🧑', color: '#7ec8e3', sub: '按 IP 去重' },
-  { label: '总访问量', value: stats.value.total ?? 0, icon: '📈', color: '#8fd3c4' },
-  { label: '已登录访客', value: stats.value.memberCount ?? 0, icon: '🙋', color: '#b39ddb' },
-  { label: '未登录游客', value: stats.value.guestCount ?? 0, icon: '🕶️', color: '#ffd98e' }
+  { label: '今日访问量', value: stats.value.todayPv ?? 0, icon: '👀' },
+  { label: '今日访客数', value: stats.value.todayUv ?? 0, icon: '🧑', sub: '按 IP 去重' },
+  { label: '总访问量', value: stats.value.total ?? 0, icon: '📈' },
+  { label: '已登录访客', value: stats.value.memberCount ?? 0, icon: '🙋' },
+  { label: '未登录游客', value: stats.value.guestCount ?? 0, icon: '🕶️' }
 ])
 
 function formatTime(t) {
@@ -168,7 +170,7 @@ function refresh() {
       </el-table-column>
 
       <template #empty>
-        <p class="empty">暂无访问记录～</p>
+        <p class="anime-empty">👣 暂无访问记录～</p>
       </template>
     </el-table>
 
@@ -202,7 +204,7 @@ function refresh() {
 
 .tools {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .stats {
@@ -215,8 +217,8 @@ function refresh() {
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -225,16 +227,18 @@ function refresh() {
 
 .stat-icon {
   font-size: 20px;
+  line-height: 1;
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: var(--text-xl);
   font-weight: 600;
-  color: #e04e82;
+  color: var(--brand-700);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -246,14 +250,14 @@ function refresh() {
 .filters {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
 .mono {
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   color: var(--text-strong);
 }
 
@@ -266,7 +270,7 @@ function refresh() {
 }
 
 .referer {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-body);
   display: inline-block;
   max-width: 100%;
@@ -277,17 +281,12 @@ function refresh() {
 }
 
 .none {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-faint);
 }
 
-.empty {
-  color: var(--text-muted);
-  padding: 20px;
-}
-
 .pager {
-  margin-top: 16px;
+  margin-top: var(--space-4);
   display: flex;
   justify-content: flex-end;
 }

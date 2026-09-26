@@ -38,6 +38,7 @@ const adminMenus = [
   { path: '/admin/subscribes', label: '邮件订阅', icon: '📮' },
   { path: '/admin/visits', label: '访客记录', icon: '👣' },
   { path: '/admin/settings', label: '站点设置', icon: '⚙️' },
+  { path: '/admin/users', label: '用户管理', icon: '👥' },
   { path: '/admin/stats', label: '数据统计', icon: '📊' },
   { path: '/admin/operation-logs', label: '操作日志', icon: '📋' },
   { path: '/profile', label: '个人信息', icon: '👤' }
@@ -80,9 +81,9 @@ function goWrite() {
         </router-link>
       </nav>
       <div class="sidebar-bottom">
-        <button class="btn write" @click="goWrite">✍️ 写文章</button>
-        <button class="btn" @click="goHome">返回前台</button>
-        <button class="btn logout" @click="logout">退出登录</button>
+        <button class="anime-btn anime-btn--primary anime-btn--sm anime-btn--block" @click="goWrite">✍️ 写文章</button>
+        <button class="anime-btn anime-btn--secondary anime-btn--sm anime-btn--block" @click="goHome">返回前台</button>
+        <button class="anime-btn anime-btn--ghost anime-btn--sm anime-btn--block" @click="logout">退出登录</button>
       </div>
     </aside>
 
@@ -111,10 +112,10 @@ function goWrite() {
 }
 
 .sidebar-title {
-  padding: 24px 20px;
+  padding: var(--space-6) var(--space-5);
   font-weight: 700;
-  font-size: 18px;
-  color: #e04e82;
+  font-size: var(--text-lg);
+  color: var(--brand-700);
   border-bottom: 1px solid var(--border-soft);
 }
 
@@ -126,56 +127,41 @@ function goWrite() {
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  color: #6a6a7a;
-  transition: all 0.2s;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  color: var(--text-body);
+  transition: background-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
 }
 
 .menu-item:hover {
   background: var(--surface-pink);
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
+/* 当前页：左侧一道实心短杠 + 向右淡出的粉色底。
+   --brand-100 在暗色下会翻转，所以这个渐变两种模式都成立。 */
 .menu-item.active {
-  background: linear-gradient(90deg, #ffd6e4, transparent);
-  color: #e04e82;
+  background: linear-gradient(90deg, var(--brand-100), transparent);
+  box-shadow: inset 3px 0 0 var(--brand-500);
+  color: var(--brand-700);
   font-weight: 600;
 }
 
 .sidebar-bottom {
-  padding: 16px;
+  padding: var(--space-4);
   border-top: 1px solid var(--border-soft);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
-.btn {
-  padding: 8px;
-  border: 1px solid #ffb3cd;
-  border-radius: 8px;
-  background: var(--surface);
-  color: #e04e82;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.btn.write {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  border: none;
-}
-
-.btn.logout {
-  background: var(--surface-soft);
-  border-color: var(--border-soft);
-  color: #888;
-}
+/* 侧边栏底部这三个按钮直接用全局按钮类（.anime-btn + 修饰类），
+   后台不再自成一体的另一套按钮样式。 */
 
 .content {
   flex: 1;
-  padding: 24px;
+  padding: var(--space-6);
   overflow: auto;
 }
 
@@ -198,15 +184,15 @@ function goWrite() {
   }
 
   .sidebar-title {
-    padding: 12px 16px;
-    font-size: 16px;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-md);
   }
 
   .menu {
     display: flex;
     flex: none;
     gap: 6px;
-    padding: 8px 10px;
+    padding: var(--space-2) 10px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -218,32 +204,36 @@ function goWrite() {
 
   .menu-item {
     flex-shrink: 0;
-    padding: 7px 12px;
-    border-radius: 999px;
+    padding: 7px var(--space-3);
+    border-radius: var(--radius-full);
     background: var(--surface-pink);
-    font-size: 13px;
+    font-size: var(--text-sm);
     white-space: nowrap;
     gap: 4px;
   }
 
+  /* 横排时左侧短杠要收起来，否则会出现在胶囊外沿 */
   .menu-item.active {
-    background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-    color: #fff;
+    background: linear-gradient(135deg, var(--brand-600), var(--brand-500));
+    box-shadow: var(--shadow-brand);
+    color: var(--text-on-brand);
   }
 
   .sidebar-bottom {
     flex-direction: row;
-    padding: 10px 12px;
-    gap: 8px;
+    padding: 10px var(--space-3);
+    gap: var(--space-2);
   }
 
-  .sidebar-bottom .btn {
+  /* 三个按钮平分一行：先去掉 --block 的 100% 宽，再交给 flex 分配 */
+  .sidebar-bottom .anime-btn {
     flex: 1;
+    width: auto;
     padding: 9px 6px;
   }
 
   .content {
-    padding: 14px 12px;
+    padding: 14px var(--space-3);
   }
 
   /* 表格别被挤扁：给最小宽度，超出部分在内容区横向滚动 */

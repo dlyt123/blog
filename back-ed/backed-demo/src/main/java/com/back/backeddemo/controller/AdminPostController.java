@@ -1,5 +1,7 @@
 package com.back.backeddemo.controller;
 
+import com.back.backeddemo.config.AdminExempt;
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.Post;
@@ -12,8 +14,20 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 文章管理（后台）。
+ *
+ * <p>整类标 {@link AdminExempt}：这里**刻意**不要求调用者一定是管理员 ——
+ * 博主也要能管理**自己的**文章。所以每个方法的鉴权是「管理员 / 本人」二选一，
+ * 由本类内部用 {@code isAdmin()} + {@code currentUserId()} 判断，
+ * 真正的删除 / 恢复 / 审核 / 加精等纯管理操作再单独调 {@code requireAdmin()}。
+ *
+ * <p>⚠️ 往这个类里加新接口时，必须自己想清楚鉴权条件，
+ * 因为拦截器那一层已经因为 {@code @AdminExempt} 让开了。
+ */
 @RestController
 @RequestMapping("/api/admin/posts")
+@AdminExempt
 public class AdminPostController {
 
     private final PostService postService;
@@ -33,14 +47,15 @@ public class AdminPostController {
                                          HttpServletRequest request) {
         boolean admin = isAdmin(request);
         Long authorId = admin ? null : currentUserId(request);
-        return Result.success(postService.listAdmin(status, keyword, authorId, page, pageSize));
+        PageQuery pq = PageQuery.of(page, pageSize);
+        return Result.success(postService.listAdmin(status, keyword, authorId, pq.page(), pq.size()));
     }
 
     /** 创建文章（作者固定为当前登录用户） */
     @PostMapping
     public Result<Map<String, Long>> create(@RequestBody Post post, HttpServletRequest request) {
         post.setAuthorId(currentUserId(request));
-        postService.create(post, post.getTagIds());
+        postService.create(post, post.getTagIds(), isAdmin(request));
         return Result.success(Map.of("id", post.getId()));
     }
 
@@ -66,7 +81,8 @@ public class AdminPostController {
                                           @RequestParam(defaultValue = "10") int pageSize,
                                           HttpServletRequest request) {
         requireAdmin(request);
-        return Result.success(postService.listTrash(keyword, page, pageSize));
+        PageQuery pq = PageQuery.of(page, pageSize);
+        return Result.success(postService.listTrash(keyword, pq.page(), pq.size()));
     }
 
     /** 从回收站恢复（仅管理员） */
@@ -90,6 +106,23 @@ public class AdminPostController {
     public Result<Void> publish(@PathVariable Long id, @RequestBody Map<String, Integer> body, HttpServletRequest request) {
         Integer status = body.get("status");
         postService.updateStatus(id, status, currentUserId(request), isAdmin(request));
+        return Result.success();
+    }
+
+    /**
+     * 审核文章（仅管理员）。
+     * body: { "pass": true|false, "remark": "驳回理由（驳回时建议填）" }
+     *
+     * <p>通过 = 置为已发布并通知订阅者；驳回 = 退回草稿并把理由写给作者看。
+     */
+    @PostMapping("/{id}/audit")
+    public Result<Void> audit(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body,
+                              HttpServletRequest request) {
+        requireAdmin(request);
+        Object passRaw = body == null ? null : body.get("pass");
+        boolean pass = passRaw == null || Boolean.parseBoolean(String.valueOf(passRaw));
+        String remark = body == null ? null : (String) body.get("remark");
+        postService.audit(id, pass, remark);
         return Result.success();
     }
 

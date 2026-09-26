@@ -1,6 +1,7 @@
 package com.back.backeddemo.service;
 
 import com.back.backeddemo.common.BusinessException;
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.entity.Comment;
 import com.back.backeddemo.entity.User;
@@ -34,8 +35,8 @@ public class CommentService {
      * 前台评论列表（顶层评论分页，楼中楼回复随父评论一起返回）
      */
     public PageResult<Comment> listByPost(Long postId, int page, int size) {
-        int offset = (Math.max(page, 1) - 1) * size;
-        List<Comment> tops = commentMapper.listTopByPostId(postId, 1, offset, size);
+        PageQuery pq = PageQuery.of(page, size, 50);
+        List<Comment> tops = commentMapper.listTopByPostId(postId, 1, pq.offset(), pq.size());
         long total = commentMapper.countTopByPostId(postId, 1);
 
         if (tops != null && !tops.isEmpty()) {
@@ -61,8 +62,8 @@ public class CommentService {
         PageResult<Comment> result = new PageResult<>();
         result.setList(tops == null ? new ArrayList<>() : tops);
         result.setTotal(total);
-        result.setPage(Math.max(page, 1));
-        result.setPageSize(size);
+        result.setPage(pq.page());
+        result.setPageSize(pq.size());
         return result;
     }
 

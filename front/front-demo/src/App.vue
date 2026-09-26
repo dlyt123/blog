@@ -152,7 +152,7 @@ function closeMenu() {
           <router-link to="/series" class="nav-page-link">系列</router-link>
           <router-link to="/about" class="nav-page-link">关于</router-link>
           <router-link to="/links" class="nav-page-link">友链</router-link>
-          <router-link to="/search" class="search-link">🔍</router-link>
+          <router-link to="/search" class="search-link" aria-label="搜索">🔍</router-link>
           <router-link
             v-if="userStore.token"
             to="/messages"
@@ -168,7 +168,9 @@ function closeMenu() {
 
           <!-- 已登录：显示用户菜单 -->
           <div v-if="userStore.isLogin" class="user-menu" @click.stop>
-            <button class="write-btn" @click="goWrite">✍️ 写文章</button>
+            <!-- 复用全局的 .anime-btn--primary，导航栏只额外覆盖高度。
+                 以前这里是一套独立的按钮样式，和其它页面的按钮各不相同。 -->
+            <button class="anime-btn anime-btn--primary write-btn" @click="goWrite">✍️ 写文章</button>
             <div class="user-trigger" @click="toggleMenu">
               <div class="avatar-mini">
                 <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" :alt="displayName" />
@@ -289,78 +291,120 @@ function closeMenu() {
   flex-direction: column;
 }
 
+/* 导航栏：全站每页都在最上面，是"质感"最容易被感知的地方。
+   毛玻璃 + 半透明底，让内容从下方滚过时有一层柔和的过渡。 */
 .navbar {
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 107, 157, 0.2);
+  z-index: var(--z-sticky);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  backdrop-filter: blur(16px) saturate(1.6);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .navbar-inner {
-  max-width: 1100px;
+  /* 宽度跟内容区对齐：导航左边缘和文章卡片左边缘落在同一条竖线上。
+     以前这里是 1100px、内容是 1080px，差 20px —— 单看没事，
+     但页面上下一对比，就会觉得"没对齐"。 */
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 20px;
-  height: 60px;
+  padding: 0 var(--space-5);
+  height: var(--navbar-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-4);
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   font-weight: 700;
-  font-size: 20px;
-  color: #e04e82;
+  font-size: var(--text-xl);
+  color: var(--brand-700);
+  flex-shrink: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.logo:hover {
+  opacity: 0.82;
 }
 
 .logo-icon {
   font-size: 24px;
+  line-height: 1;
 }
 
 .logo-img {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
   object-fit: cover;
+  box-shadow: var(--shadow-xs);
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--space-4);
 }
 
 .nav-links a {
-  color: #6a6a7a;
-  font-size: 15px;
-  transition: color 0.2s;
+  color: var(--text-body);
+  font-size: var(--text-md);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .nav-links a:hover,
 .nav-links a.router-link-active {
-  color: #e04e82;
+  color: var(--brand-700);
+}
+
+/* 导航文字链接的下划线：从左侧展开的 2px 渐变线。
+   比单纯变色多一层反馈，也是导航最容易做出精致感的地方。
+   只给 .nav-page-link 加，图标类链接（搜索 / 私信）不需要。 */
+.nav-page-link {
+  position: relative;
+}
+
+.nav-page-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--brand-500), var(--brand-400));
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+.nav-page-link:hover::after,
+.nav-page-link.router-link-active::after {
+  transform: scaleX(1);
 }
 
 .search-link {
-  font-size: 16px;
+  font-size: var(--text-lg);
+  line-height: 1;
 }
 
 .login-link {
-  color: #e04e82 !important;
+  color: var(--brand-700) !important;
   font-weight: 600;
 }
 
 .register-link {
   color: var(--text-body);
-  font-size: 14px;
+  font-size: var(--text-base);
 }
 
 .register-link:hover {
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 /* ===== 移动端汉堡菜单 =====
@@ -368,13 +412,22 @@ function closeMenu() {
    否则它们会被挤成「一列一个字」（这是移动端最扎眼的问题）。 */
 .menu-toggle {
   display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
   border: none;
+  border-radius: var(--radius-full);
   background: transparent;
-  font-size: 20px;
+  font-size: var(--text-xl);
   line-height: 1;
-  padding: 4px 6px;
   cursor: pointer;
-  color: #6a6a7a;
+  color: var(--text-body);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.menu-toggle:hover {
+  background: var(--surface-pink);
 }
 
 .mobile-nav {
@@ -383,12 +436,12 @@ function closeMenu() {
 
 @media (max-width: 768px) {
   .navbar-inner {
-    padding: 0 12px;
-    height: 54px;
+    padding: 0 var(--space-3);
+    height: var(--navbar-h-mobile);
   }
 
   .logo {
-    font-size: 17px;
+    font-size: var(--text-lg);
     min-width: 0;
   }
 
@@ -408,20 +461,21 @@ function closeMenu() {
   }
 
   .nav-links {
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .menu-toggle {
-    display: block;
+    display: flex;
   }
 
   .mobile-nav {
     display: flex;
     flex-direction: column;
-    padding: 8px 12px 14px;
-    border-top: 1px solid rgba(255, 107, 157, 0.15);
-    background: rgba(255, 255, 255, 0.97);
-    max-height: calc(100vh - 54px);
+    padding: var(--space-2) var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border-soft);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    max-height: calc(100vh - var(--navbar-h-mobile));
     overflow-y: auto;
   }
 
@@ -429,68 +483,45 @@ function closeMenu() {
     display: block;
     width: 100%;
     text-align: left;
-    padding: 12px 8px;
-    font-size: 15px;
-    color: #5a5a6a;
+    padding: var(--space-3) var(--space-2);
+    font-size: var(--text-md);
+    color: var(--text-body);
     border: none;
     background: transparent;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     cursor: pointer;
     box-sizing: border-box;
+    transition: background-color var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out);
   }
 
   .mobile-nav-item:hover,
   .mobile-nav-item.router-link-active {
     background: var(--surface-pink);
-    color: #e04e82;
+    color: var(--brand-700);
   }
 
   .mobile-nav-item.danger {
-    color: #e24b4a;
+    color: var(--danger);
   }
 
   .mobile-nav-divider {
     height: 1px;
-    background: rgba(255, 107, 157, 0.15);
-    margin: 8px 0;
+    background: var(--border-soft);
+    margin: var(--space-2) 0;
   }
 }
 
-/* 暗色模式下的移动菜单 */
-[data-theme='dark'] .mobile-nav {
-  background: rgba(32, 32, 44, 0.98);
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
+/* 移动菜单和汉堡按钮的配色现在全部走令牌
+   （背景 var(--surface)、文字 var(--text-body)、悬停 var(--surface-pink)），
+   暗色模式下变量自己会翻转，所以这里不再需要单独写一遍暗色覆盖。 */
 
-[data-theme='dark'] .mobile-nav-item {
-  color: #c8c8d8;
-}
-
-[data-theme='dark'] .mobile-nav-item:hover,
-[data-theme='dark'] .mobile-nav-item.router-link-active {
-  background: #2a2a38;
-  color: #ffb3cd;
-}
-
-[data-theme='dark'] .menu-toggle {
-  color: #c8c8d8;
-}
-
+/* 写文章按钮：外观来自全局的 .anime-btn--primary，
+   这里只覆盖导航栏需要的高度 —— 不再重复实现一套按钮。 */
 .write-btn {
   height: 34px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.write-btn:hover {
-  opacity: 0.92;
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
 }
 
 .user-menu {
@@ -502,25 +533,28 @@ function closeMenu() {
   align-items: center;
   gap: 6px;
   padding: 4px 10px 4px 4px;
-  border-radius: 999px;
-  background: rgba(255, 214, 228, 0.4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--surface-pink);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 .user-trigger:hover {
-  background: rgba(255, 214, 228, 0.7);
+  border-color: var(--border-brand);
 }
 
 .avatar-mini {
   width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   overflow: hidden;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb);
-  color: #fff;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
+  /* 浅色渐变底配品牌深色字，白字在这里读不出来 */
+  color: var(--brand-800);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--text-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -533,7 +567,7 @@ function closeMenu() {
 }
 
 .user-name {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--text-strong);
   font-weight: 600;
 }
@@ -543,49 +577,85 @@ function closeMenu() {
   color: var(--text-muted);
 }
 
+/* 下拉面板：浮层要"明显浮起来"，所以给更重的阴影 + 描边，
+   再加一点入场动画，避免生硬地"啪"一下出现。 */
 .user-dropdown {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 140px;
+  min-width: 152px;
+  padding: 6px;
   background: var(--surface);
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(224, 78, 130, 0.15);
-  overflow: hidden;
-  padding: 6px 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
+  animation: dropdown-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .dropdown-item {
   display: block;
   width: 100%;
-  padding: 10px 16px;
+  padding: 9px var(--space-3);
   text-align: left;
   border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
-  font-size: 14px;
+  font-size: var(--text-base);
   color: var(--text-strong);
   cursor: pointer;
   text-decoration: none;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
 }
 
 .dropdown-item:hover {
   background: var(--surface-pink);
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .dropdown-item.danger {
-  color: #d05070;
+  color: var(--danger);
+}
+
+.dropdown-item.danger:hover {
+  background: var(--danger-soft);
 }
 
 .anime-container {
   flex: 1;
 }
 
+/* 页脚：用一条两端渐隐的分割线代替生硬的整条 border-top，
+   视觉上更轻，不会把页面"拦腰切断"。 */
 .footer {
+  position: relative;
   text-align: center;
-  padding: 24px;
+  padding: var(--space-8) var(--space-5) var(--space-6);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, var(--container-max));
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-soft) 18%, var(--border-soft) 82%, transparent);
 }
 
 .footer-inner {
@@ -594,8 +664,8 @@ function closeMenu() {
 }
 
 .footer-links {
-  margin: 0 0 8px;
-  font-size: 12px;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-xs);
 }
 
 .footer-links a {
@@ -603,17 +673,17 @@ function closeMenu() {
 }
 
 .footer-links a:hover {
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .footer-links .sep {
-  margin: 0 8px;
-  color: #d8ccd8;
+  margin: 0 var(--space-2);
+  color: var(--text-faint);
 }
 
 .footer .icp {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-faint);
 }
 
@@ -621,11 +691,11 @@ function closeMenu() {
 .footer .icp a {
   color: var(--text-faint);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .footer .icp a:hover {
-  color: #e04e82;
+  color: var(--brand-700);
   text-decoration: underline;
 }
 
@@ -635,52 +705,73 @@ function closeMenu() {
 
 /* ===== 深色模式切换按钮 ===== */
 .theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
   border: none;
+  border-radius: var(--radius-full);
   background: transparent;
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px;
+  font-size: var(--text-lg);
   line-height: 1;
-  transition: transform 0.2s;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
 }
 
+/* 悬停时轻微旋一下：图标类按钮给一点个性，但幅度要克制 */
 .theme-btn:hover {
-  transform: scale(1.15);
+  background: var(--surface-pink);
+  transform: rotate(-18deg) scale(1.06);
 }
 
 /* ===== 私信入口 + 未读角标 ===== */
 .msg-link {
   position: relative;
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-lg);
   line-height: 1;
-  padding: 4px;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.msg-link:hover {
+  background: var(--surface-pink);
 }
 
 .msg-badge {
   position: absolute;
-  top: -4px;
-  right: -6px;
-  min-width: 16px;
-  height: 16px;
+  top: -2px;
+  right: -2px;
+  min-width: 17px;
+  height: 17px;
   padding: 0 4px;
-  border-radius: 999px;
-  background: #ff4d6d;
-  color: #fff;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: var(--text-on-brand);
   font-size: 10px;
-  line-height: 16px;
+  line-height: 17px;
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .dropdown-badge {
   display: inline-block;
   margin-left: 6px;
   padding: 0 6px;
-  border-radius: 999px;
-  background: #ff4d6d;
-  color: #fff;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: var(--text-on-brand);
   font-size: 11px;
+  font-weight: 600;
   line-height: 16px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===== 回到顶部 ===== */
@@ -688,20 +779,26 @@ function closeMenu() {
   position: fixed;
   right: 28px;
   bottom: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  font-size: 20px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-400));
+  color: var(--text-on-brand);
+  font-size: var(--text-xl);
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.4);
-  z-index: 90;
-  transition: transform 0.2s;
+  /* 内高光 + 投影 + 品牌辉光：跟主按钮同一套阴影语言 */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),
+              var(--shadow-lg),
+              var(--shadow-brand);
+  z-index: var(--z-sticky);
+  transition: transform var(--dur-base) var(--ease-spring);
 }
 
 .back-top:hover {
-  transform: translateY(-3px);
+  transform: translateY(-3px) scale(1.05);
 }
 </style>

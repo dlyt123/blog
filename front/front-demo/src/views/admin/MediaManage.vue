@@ -151,8 +151,8 @@ async function onFileChange(e) {
       </div>
     </div>
 
-    <p v-if="!loading && !filtered.length" class="empty">
-      {{ keyword ? '没有匹配的图片' : '还没有上传过图片～' }}
+    <p v-if="!loading && !filtered.length" class="anime-empty">
+      {{ keyword ? '🔍 没有匹配的图片' : '🖼️ 还没有上传过图片～' }}
     </p>
   </div>
 </template>
@@ -197,7 +197,7 @@ async function onFileChange(e) {
 
 .item {
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface);
   display: flex;
@@ -206,7 +206,7 @@ async function onFileChange(e) {
 
 .thumb {
   height: 130px;
-  background: #faf6f9;
+  background: var(--surface-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,11 +245,5 @@ async function onFileChange(e) {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-}
-
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 40px;
 }
 </style>

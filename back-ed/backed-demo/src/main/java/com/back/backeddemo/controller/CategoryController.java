@@ -1,5 +1,6 @@
 package com.back.backeddemo.controller;
 
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.common.Validate;
@@ -32,7 +33,8 @@ public class CategoryController {
     public Result<PageResult<Post>> posts(@PathVariable Long id,
                                           @RequestParam(defaultValue = "1") int page,
                                           @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.success(postService.list(id, null, null, "latest", page, pageSize));
+        PageQuery pq = PageQuery.of(page, pageSize);
+        return Result.success(postService.list(id, null, null, "latest", pq.page(), pq.size()));
     }
 
     @PostMapping("/api/admin/categories")

@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { getSeries, getSeriesPosts } from '@/api'
 import PostCard from '@/components/PostCard.vue'
+import SkeletonPostList from '@/components/SkeletonPostList.vue'
 
 const series = ref([])
 const loading = ref(false)
@@ -50,7 +51,13 @@ async function toggle(id) {
         class="series-card anime-card"
         :class="{ open: expanded[s.id] }"
       >
-        <div class="series-head" @click="toggle(s.id)">
+        <div
+          class="series-head"
+          tabindex="0"
+          :aria-expanded="!!expanded[s.id]"
+          @click="toggle(s.id)"
+          @keydown.enter="toggle(s.id)"
+        >
           <div class="series-badge">{{ String(idx + 1).padStart(2, '0') }}</div>
           <div class="series-info">
             <h3 class="series-name">{{ s.name }}</h3>
@@ -62,34 +69,52 @@ async function toggle(id) {
           </div>
         </div>
 
-        <div v-if="expanded[s.id]" v-loading="loadingMap[s.id]" class="series-posts">
-          <PostCard v-for="p in expanded[s.id]" :key="p.id" :post="p" />
-          <p v-if="!expanded[s.id].length" class="empty">这个系列还没有文章</p>
+        <div v-if="expanded[s.id]" :aria-busy="!!loadingMap[s.id]" v-loading="loadingMap[s.id] && expanded[s.id].length > 0" class="series-posts">
+          <SkeletonPostList v-if="loadingMap[s.id] && !expanded[s.id].length" :count="2" />
+          <template v-else>
+            <PostCard v-for="p in expanded[s.id]" :key="p.id" :post="p" />
+            <p v-if="!expanded[s.id].length" class="anime-empty">📭 这个系列还没有文章</p>
+          </template>
         </div>
       </div>
-      <p v-if="!series.length" class="empty">还没有创建系列</p>
+      <p v-if="!series.length" class="anime-empty">📚 还没有创建系列</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.page-title { margin: 0 0 8px; font-size: 24px; color: var(--text-strong); }
-.subtitle { margin: 0 0 20px; color: var(--text-muted); font-size: 13px; }
+.page-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-2xl);
+  color: var(--text-strong);
+}
 
+.subtitle {
+  margin: 0 0 var(--space-5);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* 整张系列卡是一块可折叠容器，不给它 .anime-card 的悬停上浮，
+   否则鼠标划过时整块会跳一下。只让边框变色做"可交互"的提示。 */
 .series-card {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
   cursor: default;
   overflow: hidden;
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  transition: border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
 }
 
+/* 整张系列卡是一块可折叠容器：全局 .anime-card:hover 会让整块跳一下，
+   这里显式取消上浮，只留边框变色做"可交互"的提示。 */
 .series-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 107, 157, 0.4);
+  transform: none;
+  border-color: var(--border-brand);
 }
 
+/* 展开态用实心品牌色描边，比 hover 再明确一档 */
 .series-card.open {
-  border-color: rgba(255, 107, 157, 0.45);
+  border-color: var(--brand-400);
 }
 
 .series-head {
@@ -98,12 +123,12 @@ async function toggle(id) {
   gap: 14px;
   cursor: pointer;
   padding: 4px;
-  border-radius: 12px;
-  transition: background 0.2s;
+  border-radius: var(--radius-md);
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .series-head:hover {
-  background: rgba(255, 214, 228, 0.35);
+  background: var(--surface-pink);
 }
 
 /* 序号徽章：给卡片一个视觉锚点，不再是一行干巴巴的文字 */
@@ -111,48 +136,80 @@ async function toggle(id) {
   width: 46px;
   height: 46px;
   flex-shrink: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 16px;
-  color: #fff;
-  background: linear-gradient(135deg, #ff6b9d, #b39ddb);
-  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.28);
+  font-size: var(--text-lg);
+  color: var(--text-on-brand);
+  background: linear-gradient(135deg, var(--brand-500), var(--purple-500));
+  box-shadow: var(--shadow-brand);
 }
 
 .series-info { flex: 1; min-width: 0; }
-.series-name { margin: 0 0 4px; font-size: 17px; color: var(--text-strong); }
-.series-desc { margin: 0; color: var(--text-muted); font-size: 13px; }
-.series-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+.series-name {
+  margin: 0 0 4px;
+  font-size: var(--text-lg);
+  color: var(--text-strong);
+}
+
+.series-desc {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.series-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 
 .series-count {
-  color: #e04e82;
-  font-size: 12px;
+  color: var(--brand-700);
+  font-size: var(--text-xs);
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--surface-pink);
-  border: 1px solid #ffd6e4;
+  border: 1px solid var(--border-soft);
   white-space: nowrap;
 }
 
-.series-arrow { color: var(--text-faint); transition: transform 0.2s; }
-.series-card.open .series-arrow { transform: rotate(90deg); color: #e04e82; }
+.series-arrow {
+  color: var(--text-faint);
+  transition: transform var(--dur-base) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
 
-.series-posts { margin-top: 14px; animation: fade-in 0.25s ease; }
-.empty { color: var(--text-muted); padding: 30px; text-align: center; }
+.series-card.open .series-arrow {
+  transform: rotate(90deg);
+  color: var(--brand-700);
+}
+
+.series-posts {
+  margin-top: 14px;
+  animation: fade-in var(--dur-base) var(--ease-out);
+}
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* 手机端：徽章缩小、右侧计数收窄，避免把标题挤到换行 */
 @media (max-width: 640px) {
-  .series-badge { width: 38px; height: 38px; font-size: 14px; border-radius: 11px; }
+  .series-badge {
+    width: 38px;
+    height: 38px;
+    font-size: var(--text-base);
+    border-radius: var(--radius-md);
+  }
   .series-head { gap: 10px; }
-  .series-name { font-size: 15px; }
+  .series-name { font-size: var(--text-md); }
   .series-count { padding: 2px 8px; }
 }
 </style>

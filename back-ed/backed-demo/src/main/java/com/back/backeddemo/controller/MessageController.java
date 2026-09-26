@@ -1,6 +1,7 @@
 package com.back.backeddemo.controller;
 
 import com.back.backeddemo.common.BusinessException;
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.Message;
 import com.back.backeddemo.entity.User;
@@ -95,9 +96,8 @@ public class MessageController {
                                             @RequestParam(defaultValue = "50") int pageSize,
                                             HttpServletRequest request) {
         Long me = requireLogin(request);
-        int size = Math.min(Math.max(pageSize, 1), 100);
-        int p = Math.max(page, 1);
-        List<Message> list = messageMapper.chat(me, otherId, (p - 1) * size, size);
+        PageQuery pq = PageQuery.of(page, pageSize);
+        List<Message> list = messageMapper.chat(me, otherId, pq.offset(), pq.size());
 
         User other = userMapper.findById(otherId);
         Map<String, Object> data = new LinkedHashMap<>();

@@ -11,6 +11,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -76,6 +78,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<Void> handleUnreadable(HttpMessageNotReadableException e) {
         return Result.error(400, "请求内容格式不正确，请检查提交的数据");
+    }
+
+    /**
+     * 上传请求不是 multipart 表单（没带文件、或 Content-Type 不对）。
+     * 属于「调用方传错了」，不是服务器故障 —— 不加这个处理会掉进兜底分支变成 500，
+     * 还会给管理员发一封没意义的告警邮件。
+     */
+    @ExceptionHandler(MultipartException.class)
+    public Result<Void> handleMultipart(MultipartException e) {
+        return Result.error(400, "上传请求格式不正确，请使用 multipart/form-data 提交文件");
+    }
+
+    /**
+     * 上传文件超过 spring.servlet.multipart.max-file-size（当前 10MB）。
+     * 这个异常是 MultipartException 的子类，会被上面的处理器兜住，
+     * 但用户最需要知道的是「文件太大」，所以单独给一句更准的话。
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result<Void> handleTooLarge(MaxUploadSizeExceededException e) {
+        return Result.error(400, "文件太大了，请压缩后再上传");
     }
 
     /**

@@ -29,7 +29,9 @@ function go(id) {
               v-for="p in month.posts"
               :key="p.id"
               class="archive-item"
+              tabindex="0"
               @click="go(p.id)"
+              @keydown.enter="go(p.id)"
             >
               <span class="date">{{ p.createTime }}</span>
               <span class="title">{{ p.title }}</span>
@@ -38,36 +40,40 @@ function go(id) {
         </div>
       </div>
     </div>
-    <p v-else class="empty">还没有归档内容～</p>
+    <p v-else class="anime-empty">📭 还没有归档内容～</p>
   </div>
 </template>
 
 <style scoped>
 .page-title {
-  margin: 0 0 20px;
-  font-size: 24px;
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-2xl);
   color: var(--text-strong);
 }
 
+/* 年份是这一页的一级分组，用品牌色做视觉锚点 */
 .year-title {
-  color: #e04e82;
-  font-size: 20px;
-  margin: 20px 0 12px;
+  color: var(--brand-700);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin: var(--space-5) 0 var(--space-3);
 }
 
 .month-title {
   color: var(--text-body);
-  margin: 10px 0 8px;
-  padding-left: 8px;
+  font-size: var(--text-md);
+  font-weight: 600;
+  margin: 10px 0 var(--space-2);
+  padding-left: var(--space-2);
 }
 
 .month-posts {
-  padding: 8px 16px;
+  padding: var(--space-2) var(--space-4);
 }
 
 .archive-item {
   display: flex;
-  gap: 16px;
+  gap: var(--space-4);
   padding: 10px 0;
   border-bottom: 1px dashed var(--border-soft);
   cursor: pointer;
@@ -79,21 +85,17 @@ function go(id) {
 
 .archive-item .date {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .archive-item .title {
   color: var(--text-strong);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .archive-item:hover .title {
-  color: #e04e82;
-}
-
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 40px;
+  color: var(--brand-700);
 }
 </style>

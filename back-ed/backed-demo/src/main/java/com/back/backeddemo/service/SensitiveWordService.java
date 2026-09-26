@@ -7,36 +7,55 @@ import com.back.backeddemo.mapper.SensitiveWordMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.Set;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 敏感词过滤服务。
  *
- * <p>词库存在数据库表 sensitive_word 里（管理员可在后台维护），
- * 启动时一次性读进内存缓存，之后每次校验只查内存，不再打数据库。
- * 管理员增删词后调用 {@link #refresh()} 立即生效。
+ * <h3>词库来源（两处合并生效）</h3>
+ * <ol>
+ *   <li><b>内置基础库</b>：{@code src/main/resources/sensitive-words.txt}，
+ *       随 jar 一起部署，<b>服务器不需要执行任何 SQL</b>。
+ *       格式 {@code 分类|词语}，按「广告 / 赌博 / 违法 / 诈骗 / 色情 / 辱骂 / 黑产」分类。</li>
+ *   <li><b>自定义词</b>：数据库表 {@code sensitive_word}，
+ *       管理员在后台「敏感词管理」里增删，改完调用 {@link #refresh()} 立即生效。</li>
+ * </ol>
  *
- * <p>本站评论是「发即显示」（不先审后发），所以敏感词采用**直接拦截**的策略：
- * 命中就不让发布，并提示用户修改。这样既不影响正常评论的即时性，
- * 又挡住了垃圾广告和辱骂内容。
+ * <h3>匹配方式</h3>
+ * 由 {@link SensitiveWordEngine} 做归一化 + Trie 一次扫描，
+ * 所以「办*证」「办 证」「办-证」「ＢＡＮ ＺＨＥＮＧ」这类变体都能命中。
+ * 性能与词库规模基本无关（原来那种「逐个 contains」在词多以后会很慢）。
  *
- * <p>匹配方式是朴素子串匹配，词库只有几百条时开销可以忽略。
- * 如果以后词库涨到上万条，建议换成 DFA（Aho-Corasick）算法。
+ * <h3>策略</h3>
+ * 评论是「发即显示」（不先审后发），所以这里采用<b>直接拦截</b>：
+ * 命中就不让发布，并提示用户修改。
+ *
+ * <p>⚠️ 静态词库只能挡住「写得比较直白」的内容。变体、图片、外链指向
+ * 靠词库是拦不住的 —— 那部分建议接入合规的内容安全服务。
  */
 @Service
 public class SensitiveWordService {
 
     private static final Logger log = LoggerFactory.getLogger(SensitiveWordService.class);
 
+    /** 内置词库文件名（放 resources 根目录） */
+    private static final String BUILTIN_FILE = "sensitive-words.txt";
+
     private final SensitiveWordMapper mapper;
     private final SensitiveLogMapper sensitiveLogMapper;
 
-    /** 内存词库缓存（小写化，便于英文词忽略大小写） */
-    private volatile Set<String> words = Set.of();
+    /** 匹配引擎（构建完成后只读，可并发使用） */
+    private volatile SensitiveWordEngine engine = new SensitiveWordEngine();
+
+    /** 内置词条数（统计用） */
+    private volatile int builtinCount = 0;
 
     public SensitiveWordService(SensitiveWordMapper mapper, SensitiveLogMapper sensitiveLogMapper) {
         this.mapper = mapper;
@@ -50,24 +69,79 @@ public class SensitiveWordService {
 
     /** 重新加载词库（启动时 + 管理员增删词后调用） */
     public synchronized void refresh() {
+        List<String> all = new ArrayList<>();
+
+        // ① 内置基础库
+        int builtin = 0;
         try {
-            Set<String> loaded = new HashSet<>();
+            ClassPathResource res = new ClassPathResource(BUILTIN_FILE);
+            if (res.exists()) {
+                try (BufferedReader r = new BufferedReader(
+                        new InputStreamReader(res.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = r.readLine()) != null) {
+                        String w = parseBuiltinLine(line);
+                        if (w != null) {
+                            all.add(w);
+                            builtin++;
+                        }
+                    }
+                }
+            } else {
+                log.warn("内置敏感词库 {} 不存在，将只用数据库里的词", BUILTIN_FILE);
+            }
+        } catch (Exception e) {
+            log.warn("内置敏感词库读取失败：{}", e.getMessage());
+        }
+        this.builtinCount = builtin;
+
+        // ② 数据库自定义词
+        int custom = 0;
+        try {
             for (String w : mapper.listAllWords()) {
                 if (w != null && !w.isBlank()) {
-                    loaded.add(w.trim().toLowerCase(Locale.ROOT));
+                    all.add(w.trim());
+                    custom++;
                 }
             }
-            this.words = loaded;
-            log.info("敏感词库加载完成，共 {} 条", loaded.size());
         } catch (Exception e) {
-            // 词库加载失败不能让整个应用起不来，退化为「不过滤」
-            log.warn("敏感词库加载失败，本次启动将不做敏感词过滤：{}", e.getMessage());
+            // 数据库读不到也不能让应用起不来 —— 至少还有内置库兜着
+            log.warn("数据库敏感词读取失败（仍会使用内置词库）：{}", e.getMessage());
         }
+
+        SensitiveWordEngine built = new SensitiveWordEngine();
+        built.build(all);
+        this.engine = built;
+
+        log.info("敏感词库加载完成：内置 {} 条 + 自定义 {} 条 = 去重后 {} 条",
+                builtin, custom, built.size());
     }
 
-    /** 当前词库条数 */
+    /**
+     * 解析内置词库的一行：{@code 分类|词语}。
+     * 也兼容只写「词语」不带分类的写法；注释和空行返回 null。
+     */
+    private static String parseBuiltinLine(String line) {
+        if (line == null) {
+            return null;
+        }
+        String s = line.trim();
+        if (s.isEmpty() || s.startsWith("#")) {
+            return null;
+        }
+        int bar = s.indexOf('|');
+        String w = (bar >= 0 ? s.substring(bar + 1) : s).trim();
+        return w.isEmpty() ? null : w;
+    }
+
+    /** 当前生效的词库条数（内置 + 自定义，已去重） */
     public int size() {
-        return words.size();
+        return engine.size();
+    }
+
+    /** 内置词条数 */
+    public int builtinSize() {
+        return builtinCount;
     }
 
     /**
@@ -75,36 +149,42 @@ public class SensitiveWordService {
      * 仅供服务端日志使用，不返回给前端（避免被用来试探词库）。
      */
     public String firstHit(String text) {
-        if (text == null || text.isEmpty() || words.isEmpty()) {
-            return null;
-        }
-        String lower = text.toLowerCase(Locale.ROOT);
-        for (String w : words) {
-            if (lower.contains(w)) {
-                return w;
-            }
-        }
-        return null;
+        return engine.firstHit(text);
     }
 
     /** 校验文本，命中敏感词则抛出业务异常，阻止发布 */
     public void validate(String text, String scene) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
         String hit = firstHit(text);
         if (hit != null) {
-            // 命中词只写服务端日志，不回给客户端
+            // 命中词只写服务端日志，不回给客户端（防止被用来反推词库）
             log.info("[敏感词拦截] 场景={} 命中词={}", scene, hit);
             // 同时记一条「命中记录」，让管理员在后台能看到被拦了什么
             try {
                 SensitiveLog record = new SensitiveLog();
                 record.setWord(hit);
                 record.setScene(scene);
-                record.setContent(text != null && text.length() > 500
-                        ? text.substring(0, 500) : text);
+                record.setContent(text.length() > 500 ? text.substring(0, 500) : text);
                 sensitiveLogMapper.insert(record);
             } catch (Exception ignore) {
                 // 命中记录写失败不影响拦截本身
             }
             throw new BusinessException(400, "内容包含敏感词，请修改后再提交");
+        }
+    }
+
+    /**
+     * 校验多个字段（标题 / 摘要 / 正文 一起传）。
+     * 任一字段命中就拦下，场景名里会带上字段名，方便后台定位。
+     */
+    public void validateAll(String scene, String... texts) {
+        if (texts == null) {
+            return;
+        }
+        for (String t : texts) {
+            validate(t, scene);
         }
     }
 }

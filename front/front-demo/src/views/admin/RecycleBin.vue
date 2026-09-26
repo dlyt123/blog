@@ -109,7 +109,7 @@ async function purge(item) {
         </template>
       </el-table-column>
       <template #empty>
-        <p class="empty">回收站是空的～</p>
+        <p class="anime-empty anime-empty--inline">🗑️ 回收站是空的～</p>
       </template>
     </el-table>
 
@@ -151,13 +151,8 @@ async function purge(item) {
   line-height: 1.7;
 }
 
-.empty {
-  color: var(--text-muted);
-  padding: 20px;
-}
-
 .pager {
-  margin-top: 16px;
+  margin-top: var(--space-4);
   display: flex;
   justify-content: flex-end;
 }

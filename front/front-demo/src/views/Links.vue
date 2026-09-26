@@ -66,7 +66,7 @@ function hostOf(url) {
       </div>
     </div>
 
-    <p v-else-if="!loading" class="empty">还没有添加友链～</p>
+    <p v-else-if="!loading" class="anime-empty">🔗 还没有添加友链～</p>
 
     <p class="tip">想和我交换友链？欢迎通过「关于」页面联系我。</p>
   </div>
@@ -80,56 +80,61 @@ function hostOf(url) {
 }
 
 .subtitle {
-  margin: 0 0 24px;
+  margin: 0 0 var(--space-6);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .link-group {
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
+/* 分组标题：左侧一道品牌色短杠 —— 比加粗或换色更轻，也不干扰卡片本身 */
 .group-title {
-  margin: 0 0 12px;
-  font-size: 15px;
-  color: #e04e82;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--brand-700);
   padding-left: 10px;
-  border-left: 3px solid #ffb3cd;
+  border-left: 3px solid var(--brand-300);
 }
 
 .link-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .link-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
   text-decoration: none;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  transition: transform var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
 }
 
 .link-card:hover {
   transform: translateY(-3px);
-  border-color: #ffb3cd;
-  box-shadow: 0 6px 18px rgba(224, 78, 130, 0.15);
+  border-color: var(--border-brand);
+  box-shadow: var(--shadow-lg);
 }
 
 .link-avatar {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb);
-  color: #fff;
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
+  /* 浅色渐变底配品牌深色字；原来的白字在这个底上基本看不清 */
+  color: var(--brand-800);
   font-weight: 700;
-  font-size: 17px;
+  font-size: var(--text-lg);
 }
 
 .link-info {
@@ -143,41 +148,37 @@ function hostOf(url) {
 .link-name {
   color: var(--text-strong);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--text-base);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .link-card:hover .link-name {
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .link-host {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .link-arrow {
-  color: #d0c0d0;
-  font-size: 14px;
+  color: var(--text-faint);
+  font-size: var(--text-base);
   flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .link-card:hover .link-arrow {
-  color: #e04e82;
-}
-
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 40px;
+  color: var(--brand-700);
 }
 
 .tip {
-  margin-top: 28px;
+  margin-top: var(--space-8);
   text-align: center;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 </style>

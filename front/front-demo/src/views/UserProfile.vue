@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getUserProfile, getUserPosts, followUser, unfollowUser } from '@/api'
 import { useUserStore } from '@/store/user'
 import PostCard from '@/components/PostCard.vue'
+import SkeletonPostList from '@/components/SkeletonPostList.vue'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -159,9 +160,12 @@ function sendMessage() {
       </div>
 
       <h3 class="section-title">📝 TA 的文章</h3>
-      <div v-loading="loading">
-        <PostCard v-for="post in posts" :key="post.id" :post="post" />
-        <p v-if="!loading && !posts.length" class="empty">这位博主还没有发布文章～</p>
+      <div :aria-busy="loading" v-loading="loading && posts.length > 0">
+        <SkeletonPostList v-if="loading && !posts.length" :count="2" />
+        <template v-else>
+          <PostCard v-for="post in posts" :key="post.id" :post="post" />
+          <p v-if="!posts.length" class="anime-empty">📝 这位博主还没有发布文章～</p>
+        </template>
       </div>
 
       <div v-if="total > pageSize" class="pagination">
@@ -181,39 +185,41 @@ function sendMessage() {
 <style scoped>
 .not-found {
   text-align: center;
-  padding: 60px 24px;
+  padding: var(--space-12) var(--space-6);
 }
 
 .nf-code {
   font-size: 56px;
   font-weight: 800;
-  margin: 0 0 8px;
-  color: #ffb3cd;
+  margin: 0 0 var(--space-2);
+  color: var(--brand-300);
+  line-height: 1;
 }
 
 .nf-text {
-  margin: 0 0 20px;
+  margin: 0 0 var(--space-5);
   color: var(--text-body);
 }
 
 .profile-card {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 24px;
+  gap: var(--space-5);
+  padding: var(--space-6);
   flex-wrap: wrap;
 }
 
 .avatar {
   width: 76px;
   height: 76px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   overflow: hidden;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb);
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--border-soft);
 }
 
 .avatar img {
@@ -222,10 +228,11 @@ function sendMessage() {
   object-fit: cover;
 }
 
+/* 浅色渐变底配品牌深色字；白字在这块底上读不出来 */
 .avatar-fallback {
-  color: #fff;
+  color: var(--brand-800);
   font-weight: 700;
-  font-size: 30px;
+  font-size: var(--text-3xl);
 }
 
 .info {
@@ -235,67 +242,64 @@ function sendMessage() {
 
 .nickname {
   margin: 0 0 4px;
-  font-size: 20px;
+  font-size: var(--text-xl);
   color: var(--text-strong);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .username {
   margin: 0 0 2px;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .joined {
   margin: 0;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
+/* 数据统计三连 */
 .counts {
   display: flex;
-  gap: 12px;
-  margin: 16px 0 24px;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 var(--space-6);
 }
 
 .count-item {
   flex: 1;
   background: var(--surface);
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   padding: 14px;
   text-align: center;
 }
 
 .count-value {
   display: block;
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: 600;
-  color: #e04e82;
+  color: var(--brand-700);
+  font-variant-numeric: tabular-nums;
 }
 
 .count-label {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
 .section-title {
   margin: 0 0 14px;
-  font-size: 16px;
+  font-size: var(--text-lg);
+  font-weight: 600;
   color: var(--text-strong);
-}
-
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 40px;
 }
 
 .pagination {
   display: flex;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: var(--space-5);
 }
 </style>

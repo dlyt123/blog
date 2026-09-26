@@ -1,6 +1,7 @@
 package com.back.backeddemo.service;
 
 import com.back.backeddemo.common.BusinessException;
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.common.Validate;
 import com.back.backeddemo.entity.Post;
@@ -25,28 +26,32 @@ public class PostService {
     private final TagMapper tagMapper;
     private final SeriesMapper seriesMapper;
     private final NotificationService notificationService;
+    private final SensitiveWordService sensitiveWordService;
 
     public PostService(PostMapper postMapper, TagMapper tagMapper, SeriesMapper seriesMapper,
-                       NotificationService notificationService) {
+                       NotificationService notificationService,
+                       SensitiveWordService sensitiveWordService) {
         this.postMapper = postMapper;
         this.tagMapper = tagMapper;
         this.seriesMapper = seriesMapper;
         this.notificationService = notificationService;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     /** 前台文章列表 */
     public PageResult<Post> list(Long categoryId, Long tagId, String keyword, String orderBy, int page, int pageSize) {
-        int offset = (page - 1) * pageSize;
-        List<Post> posts = postMapper.list(categoryId, tagId, keyword, orderBy, offset, pageSize);
+        // 即使调用方忘了归一化，这里再兜一层：page / pageSize 的边界规则只有 PageQuery 说了算
+        PageQuery pq = PageQuery.of(page, pageSize);
+        List<Post> posts = postMapper.list(categoryId, tagId, keyword, orderBy, pq.offset(), pq.size());
         fillTags(posts);
-        return buildPage(posts, postMapper.count(categoryId, tagId, keyword), page, pageSize);
+        return buildPage(posts, postMapper.count(categoryId, tagId, keyword), pq.page(), pq.size());
     }
 
     /** 后台文章列表（管理员看全部，博主只看自己的） */
     public PageResult<Post> listAdmin(Integer status, String keyword, Long authorId, int page, int pageSize) {
-        int offset = (page - 1) * pageSize;
-        List<Post> posts = postMapper.listAdmin(status, keyword, authorId, offset, pageSize);
-        return buildPage(posts, postMapper.countAdmin(status, keyword, authorId), page, pageSize);
+        PageQuery pq = PageQuery.of(page, pageSize);
+        List<Post> posts = postMapper.listAdmin(status, keyword, authorId, pq.offset(), pq.size());
+        return buildPage(posts, postMapper.countAdmin(status, keyword, authorId), pq.page(), pq.size());
     }
 
     /** 文章详情（含标签、上一篇下一篇） */
@@ -121,25 +126,36 @@ public class PostService {
 
     /** 关注流：我关注的人发布的文章（分页） */
     public PageResult<Post> listByFollowees(Long followerId, int page, int size) {
-        int offset = (Math.max(page, 1) - 1) * size;
-        List<Post> list = postMapper.listByFollowees(followerId, offset, size);
+        PageQuery pq = PageQuery.of(page, size);
+        List<Post> list = postMapper.listByFollowees(followerId, pq.offset(), pq.size());
         fillTags(list);
-        return buildPage(list, postMapper.countByFollowees(followerId), page, size);
+        return buildPage(list, postMapper.countByFollowees(followerId), pq.page(), pq.size());
     }
 
     /** 某个系列下的文章（分页） */
     public PageResult<Post> listBySeries(Long seriesId, int page, int size) {
-        int offset = (Math.max(page, 1) - 1) * size;
-        List<Post> list = postMapper.listBySeries(seriesId, offset, size);
+        PageQuery pq = PageQuery.of(page, size);
+        List<Post> list = postMapper.listBySeries(seriesId, pq.offset(), pq.size());
         fillTags(list);
-        return buildPage(list, postMapper.countBySeries(seriesId), page, size);
+        return buildPage(list, postMapper.countBySeries(seriesId), pq.page(), pq.size());
     }
 
-    /** 创建文章（含标签关联），authorId 需在调用前已设置到 post 上 */
+    /**
+     * 创建文章（含标签关联），authorId 需在调用前已设置到 post 上。
+     *
+     * <p>2026-09-20 加了两道关卡：
+     * <ol>
+     *   <li><b>敏感词</b>：标题 / 摘要 / 正文一起校验，命中直接拦下不让保存。</li>
+     *   <li><b>先审后发</b>：管理员免审；普通用户发文进入「待审核」，
+     *       并且 status 保持 0（草稿）—— <b>所以前台看不到，审核通过后才可见</b>。</li>
+     * </ol>
+     */
     @Transactional
-    public void create(Post post, List<Long> tagIds) {
+    public void create(Post post, List<Long> tagIds, boolean isAdmin) {
         // 标题必填：不然会一路插到数据库，靠 NOT NULL 约束报错（500）
         post.setTitle(Validate.requiredText(post.getTitle(), "文章标题"));
+        sensitiveWordService.validateAll("发表文章",
+                post.getTitle(), post.getSummary(), post.getContent());
         if (post.getStatus() == null) {
             post.setStatus(0);
         }
@@ -148,6 +164,14 @@ public class PostService {
         }
         if (post.getRecommended() == null) {
             post.setRecommended(0);
+        }
+        if (isAdmin) {
+            // 管理员自己的文章免审
+            post.setAuditStatus(0);
+        } else {
+            post.setAuditStatus(1);
+            post.setStatus(0);          // 待审核期间保持草稿态，前台不可见
+            post.setPublishTime(null);
         }
         if (post.getStatus() == 1 && post.getPublishTime() == null) {
             post.setPublishTime(LocalDateTime.now());
@@ -165,9 +189,49 @@ public class PostService {
         checkOwner(post.getId(), currentUserId, isAdmin);
         // 同样先挡住空标题，别让它变成数据库的 NOT NULL 报错
         post.setTitle(Validate.requiredText(post.getTitle(), "文章标题"));
+        sensitiveWordService.validateAll("修改文章",
+                post.getTitle(), post.getSummary(), post.getContent());
+        if (!isAdmin) {
+            // 普通用户改动后要【复核】，但**保持原来的发布状态** ✗
+            // —— 否则改个错别字文章就下架了，对正常作者太苛刻 ✓
+            // 后台会给管理员标出「待复核」，管理员看过再决定 ✓
+            post.setAuditStatus(1);
+            post.setAuditRemark(null);
+        }
         postMapper.update(post);
         if (tagIds != null) {
             saveTags(post.getId(), tagIds);
+        }
+    }
+
+    /**
+     * 审核文章（仅管理员，入口在 AdminPostController 里已做权限校验）。
+     *
+     * @param pass   true=通过并发布，false=驳回
+     * @param remark 驳回理由（作者能看到）
+     */
+    @Transactional
+    public void audit(Long id, boolean pass, String remark) {
+        Post existing = postMapper.findById(id);
+        if (existing == null) {
+            throw new BusinessException(404, "文章不存在");
+        }
+        Post up = new Post();
+        up.setId(id);
+        if (pass) {
+            up.setAuditStatus(0);
+            up.setAuditRemark(null);
+            up.setStatus(1);
+            up.setPublishTime(existing.getPublishTime() == null
+                    ? LocalDateTime.now() : existing.getPublishTime());
+            postMapper.update(up);
+            // 审核通过才算「真正发布」，这时才通知订阅者
+            notificationService.notifyNewPost(postMapper.findById(id));
+        } else {
+            up.setAuditStatus(2);
+            up.setAuditRemark(remark == null || remark.isBlank() ? "内容不符合发布规范" : remark.trim());
+            up.setStatus(0);
+            postMapper.update(up);
         }
     }
 
@@ -178,9 +242,9 @@ public class PostService {
 
     /** 回收站列表（仅管理员，故无需 owner 校验） */
     public PageResult<Post> listTrash(String keyword, int page, int pageSize) {
-        int offset = (page - 1) * pageSize;
-        List<Post> posts = postMapper.listTrash(keyword, offset, pageSize);
-        return buildPage(posts, postMapper.countTrash(keyword), page, pageSize);
+        PageQuery pq = PageQuery.of(page, pageSize);
+        List<Post> posts = postMapper.listTrash(keyword, pq.offset(), pq.size());
+        return buildPage(posts, postMapper.countTrash(keyword), pq.page(), pq.size());
     }
 
     /** 从回收站恢复文章（仅管理员） */

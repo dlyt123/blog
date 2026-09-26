@@ -1,10 +1,196 @@
-/* ============================================
+/* ============================================================
    博客全局样式
+   ------------------------------------------------------------
    配色：樱花粉 + 天空蓝 + 薄荷绿 + 薰衣草紫
-   ============================================ */
 
+   本文件分 8 层，从上到下依次是：
+     1. 设计令牌   —— 所有颜色/圆角/阴影/间距/动效的唯一来源
+     2. 基础层     —— 重置、排版、滚动条、选中色
+     3. 应用外壳   —— 页面背景、容器、标题、标签
+     4. 组件层     —— 卡片、按钮、输入框、徽章
+     5. Markdown   —— 正文排版
+     6. 组件库对齐 —— Element Plus 主题
+     7. 暗色模式   —— 覆盖令牌（不是覆盖类名）
+     8. 无障碍     —— 焦点环、动效降级
+
+   改样式的原则（重要）：
+   想改颜色/圆角/阴影，请优先改第 1 层的令牌，不要在页面里写死具体色值。
+   页面里写死一个 #e04e82，将来想换主题就得改 30 个文件 —— 已经踩过这个坑。
+   ============================================================ */
+
+/* ============================================================
+   1. 设计令牌
+   ============================================================ */
 :root {
-  /* Element Plus 主题色改为樱花粉 */
+  /* ---------- 1.1 品牌色阶 ----------
+     完整 50→900 阶梯。使用规则：
+       · 400/500 只做填充和装饰，不要用来写文字
+         （#ff6b9d 在白底上对比度只有 2.9:1，远低于 AA 要求的 4.5:1）
+       · 700 及以上才可用于承载信息的文字
+         （#c2266b 白底对比度 5.5:1，达标）
+     后面每个色相都遵循这个规则，不再逐个说明。 */
+  --brand-50:  #fff5f8;
+  --brand-100: #ffe8f0;
+  --brand-200: #ffd0e0;
+  --brand-300: #ffb0cb;
+  --brand-400: #ff8ab3;
+  --brand-500: #ff6b9d;   /* 主色：按钮、装饰、强调块 */
+  --brand-600: #e04e82;   /* 悬停、次级强调 */
+  --brand-700: #c2266b;   /* 文字安全色（AA 达标） */
+  --brand-800: #a01a56;
+  --brand-900: #7d1243;
+
+  /* ---------- 1.2 辅助色相（保持原有樱花配色，补齐色阶） ---------- */
+  --blue-100: #eaf7fd;
+  --blue-300: #a8dcf5;
+  --blue-500: #7ec8e3;
+  --blue-700: #2f7391;
+
+  --mint-100: #e8f8f3;
+  --mint-300: #a8e6c9;
+  --mint-500: #8fd3c4;
+  --mint-700: #2f7a63;
+
+  --purple-100: #f2eefa;
+  --purple-300: #cdbfeb;
+  --purple-500: #b39ddb;
+  --purple-700: #57457d;
+
+  --amber-100: #fdf4e3;
+  --amber-300: #ffe08a;
+  --amber-500: #ffd98e;
+  --amber-700: #8a6a1f;
+
+  /* ---------- 1.3 语义色（成功/警告/危险/信息） ---------- */
+  --success:      #2f9e7a;
+  --success-soft: #e6f6f0;
+  --warning:      #c9861a;
+  --warning-soft: #fdf3e0;
+  --danger:       #d4475c;
+  --danger-soft:  #fdeaee;
+  --info:         #4a90d9;
+  --info-soft:    #eaf3fd;
+
+  /* ---------- 1.4 中性文字色阶 ----------
+     这是对比度问题的修复点。原值 --text-muted(#a0a0b0) 在浅色底上只有 2.58:1，
+     --text-faint 更低，正文里的小字基本看不清。现在重新标定，括号内是白底对比度：
+       strong 11.1:1  ·  body 6.3:1  ·  muted 4.6:1  ·  faint 2.8:1（仅装饰，不承载信息） */
+  --text-strong: #3a3a4a;
+  --text-body:   #5e5e70;
+  --text-muted:  #737388;
+  --text-faint:  #9c9caf;
+  --text-on-brand: #fff;
+
+  /* ---------- 1.5 表面与描边 ---------- */
+  --surface:       #fff;        /* 卡片 / 控件底色 */
+  --surface-soft:  #faf7fa;     /* 次级底色（浅灰粉） */
+  --surface-sunk:  #f4eff4;     /* 内凹底（代码块、空状态） */
+  --surface-pink:  #fff0f6;     /* 粉色高亮底（选中态） */
+  --surface-glass: rgba(255, 255, 255, 0.86); /* 毛玻璃层（导航、浮层） */
+  --scrim:         rgba(58, 58, 74, 0.45);    /* 模态遮罩 */
+
+  --border-soft:  #f0d8e0;      /* 常规描边 */
+  --border-softer:#f7eaf0;      /* 更弱的描边（表格行、分割线） */
+  --border-strong:#e6c3d2;      /* 强调描边（悬停） */
+  --border-brand: rgba(255, 107, 157, 0.35);
+  --skeleton-sheen: rgba(255, 255, 255, 0.72); /* 骨架屏掠光 */
+
+  /* ---------- 1.6 圆角阶梯 ---------- */
+  --radius-xs:   6px;
+  --radius-sm:   8px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   18px;
+  --radius-2xl:  24px;
+  --radius-full: 999px;
+
+  /* ---------- 1.7 阴影阶梯 ----------
+     高级感的关键不是"阴影更大"，而是"分两层"：
+     一层贴地的近距离阴影勾勒边缘，一层柔和的远距离阴影营造高度。
+     颜色用暖灰紫而非纯黑 —— 粉色主题下黑色阴影会显脏。 */
+  --shadow-xs: 0 1px 2px rgba(76, 44, 62, 0.06);
+  --shadow-sm: 0 1px 2px rgba(76, 44, 62, 0.06),
+               0 2px 8px -2px rgba(76, 44, 62, 0.08);
+  --shadow-md: 0 1px 3px rgba(76, 44, 62, 0.07),
+               0 8px 22px -8px rgba(76, 44, 62, 0.14);
+  --shadow-lg: 0 2px 6px rgba(76, 44, 62, 0.07),
+               0 18px 40px -14px rgba(76, 44, 62, 0.20);
+  --shadow-xl: 0 4px 10px rgba(76, 44, 62, 0.08),
+               0 32px 64px -20px rgba(76, 44, 62, 0.26);
+  /* 品牌色辉光：只给主按钮和选中态用，用太多会廉价 */
+  --shadow-brand: 0 8px 20px -8px rgba(255, 107, 157, 0.65);
+
+  /* ---------- 1.8 间距阶梯（4px 基线） ---------- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ---------- 1.9 字号阶梯 ---------- */
+  --text-xs:   12px;
+  --text-sm:   13px;
+  --text-base: 14px;
+  --text-md:   15px;
+  --text-lg:   17px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  30px;
+  --text-4xl:  36px;
+
+  /* ---------- 1.10 动效令牌 ----------
+     原来全站只有 linear/ease 的 0.2s 过渡，动起来发"木"。
+     ease-out 用自定义贝塞尔，起步快收尾缓，观感更利落。 */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 0.15s;
+  --dur-base: 0.25s;
+  --dur-slow: 0.4s;
+
+  /* ---------- 1.11 层级 ---------- */
+  --z-sticky:  100;
+  --z-dropdown:200;
+  --z-overlay: 300;
+  /* 全屏模态（Teleport 到 body 的弹窗）要盖住页面上的一切 */
+  --z-modal:   2000;
+
+  /* ---------- 1.12 布局 ---------- */
+  --container-max: 1080px;
+  --navbar-h: 62px;
+  --navbar-h-mobile: 56px;
+
+  /* ---------- 1.13 字体 ---------- */
+  --font-sans: 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', -apple-system,
+               BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', Consolas,
+               'Courier New', monospace;
+
+  /* ============================================================
+     1.14 兼容别名
+     ------------------------------------------------------------
+     下面这些是旧变量名，页面里已经用了很多，不能直接删。
+     现在它们都指向新的令牌，等于"一处改名、处处生效"。
+     ============================================================ */
+  --anime-pink:        var(--brand-500);
+  --anime-pink-light:  var(--brand-200);
+  --anime-blue:        var(--blue-500);
+  --anime-blue-light:  var(--blue-300);
+  --anime-mint:        var(--mint-500);
+  --anime-purple:      var(--purple-500);
+  --anime-purple-light:var(--purple-300);
+  --anime-yellow:      var(--amber-500);
+  --anime-text:        var(--text-body);
+  --anime-bg:          #fff8fb;
+  --anime-gradient:    linear-gradient(135deg, #ffd6e4 0%, #d6f0fb 45%, #e8e0f5 100%);
+
+  /* ---------- 1.15 Element Plus 主题 ----------
+     主色改为樱花粉，并把圆角/阴影对齐到上面的令牌，
+     否则 Element Plus 的方角控件跟自定义的圆角卡片放在一起会有割裂感。 */
   --el-color-primary: #ff6b9d;
   --el-color-primary-light-3: #ff8fb5;
   --el-color-primary-light-5: #ffb3cd;
@@ -13,70 +199,139 @@
   --el-color-primary-light-9: #fff0f5;
   --el-color-primary-dark-2: #e04e82;
 
-  /* 主题配色 */
-  --anime-pink: #ff6b9d;
-  --anime-pink-light: #ffd6e4;
-  --anime-blue: #7ec8e3;
-  --anime-blue-light: #d6f0fb;
-  --anime-mint: #8fd3c4;
-  --anime-purple: #b39ddb;
-  --anime-purple-light: #e8e0f5;
-  --anime-yellow: #ffd98e;
-  --anime-text: #4a4a5a;
-  --anime-bg: #fff8fb;
+  --el-color-success: var(--success);
+  --el-color-warning: var(--warning);
+  --el-color-danger:  var(--danger);
+  --el-color-error:   var(--danger);
+  --el-color-info:    var(--info);
 
-  /* ===== 文字色阶（暗色模式切换的核心）=====
-     以前各组件里写死了 #3a3a4a / #7a7a8a / #a0a0b0 / #c5b8c5 等颜色，
-     结果一开暗色模式，深灰字配深色背景 → 大片文字看不清。
-     统一改用这组变量，暗色模式只需在下面覆盖一次即可。 */
-  --text-strong: #3a3a4a;   /* 标题、重要文字 */
-  --text-body: #7a7a8a;     /* 正文、次要说明 */
-  --text-muted: #a0a0b0;    /* 更弱的辅助信息（时间、计数） */
-  --text-faint: #c5b8c5;    /* 最弱（占位、提示） */
+  --el-border-radius-base:  var(--radius-md);
+  --el-border-radius-small: var(--radius-sm);
+  --el-border-radius-round: var(--radius-full);
 
-  /* ===== 表面与描边 =====
-     同理：卡片、按钮、输入框的浅色底和浅色描边也要走变量，
-     否则暗色下会出现「白底配浅字」这种更糟的组合。
-     注意：用变量就不必和组件 scoped 样式比特异性，天然继承生效。 */
-  --surface: #fff;          /* 卡片 / 控件底色 */
-  --surface-soft: #faf5f8;  /* 次级底色（浅灰粉） */
-  --surface-pink: #fff0f6;  /* 粉色高亮底（选中态） */
-  --border-soft: #f0d8e0;   /* 浅粉描边 */
-
-  --anime-gradient: linear-gradient(135deg, #ffd6e4 0%, #d6f0fb 45%, #e8e0f5 100%);
+  --el-font-family: var(--font-sans);
+  --el-box-shadow-light: var(--shadow-sm);
+  --el-box-shadow:       var(--shadow-md);
+  --el-box-shadow-dark:  var(--shadow-lg);
 }
 
-* {
+/* ============================================================
+   2. 基础层
+   ============================================================ */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html, body {
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+html,
+body {
   margin: 0;
   padding: 0;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
-  color: var(--anime-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--text-body);
   background: var(--anime-bg);
+  /* 字体渲染优化：中文字在 Windows 上打开抗锯齿后笔画更均匀 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
+body {
+  /* 防止 iOS 横屏 / 长英文单词把页面顶宽 */
+  overflow-x: hidden;
+}
+
+/* 表单控件默认不继承字体，这是浏览器行为，必须显式声明 */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+/* 选中色：默认的蓝色高亮和粉色主题冲突 */
+::selection {
+  background: var(--brand-200);
+  color: var(--brand-900);
+}
+
+/* 滚动条：做成"带内缩的胶囊"，比默认方块精致得多。
+   border + background-clip 是让它看起来比轨道窄的关键。 */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 107, 157, 0.28);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  transition: background-color var(--dur-base) var(--ease-out);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 107, 157, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 107, 157, 0.35) transparent;
+}
+
+a {
+  color: var(--brand-700);
+  text-decoration: none;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+a:hover {
+  color: var(--brand-600);
+}
+
+img {
+  max-width: 100%;
+}
+
+/* 数字对齐：阅读量、点赞数这类计数用等宽数字，列表里不会左右跳动 */
+.num,
+.views,
+.likes,
+.hot-views {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   3. 应用外壳
+   ============================================================ */
 #app {
   min-height: 100vh;
-  background: var(--anime-gradient);
+  /* 多层径向光晕叠一层线性渐变：比原来单条渐变更有纵深，
+     左上粉、右上蓝，视觉重心落在内容区上方。 */
+  background:
+    radial-gradient(1200px 620px at 8% -12%, rgba(255, 107, 157, 0.16), transparent 62%),
+    radial-gradient(980px 520px at 96% -6%, rgba(126, 200, 227, 0.16), transparent 58%),
+    linear-gradient(165deg, #fff8fb 0%, #f9f5fd 52%, #f3f8fc 100%);
   background-attachment: fixed;
-}
-
-/* 圆角卡片 */
-.anime-card {
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.12);
-  border: 1px solid rgba(255, 107, 157, 0.15);
-  padding: 20px;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-
-.anime-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 28px rgba(255, 107, 157, 0.22);
 }
 
 /* 页面容器 */
@@ -87,17 +342,18 @@ html, body {
      涨到 601px，而手机屏只有 390px，于是整页横向溢出、正文被裁掉。
      实测：加上 width:100% 后宽度立刻回到 390。 */
   width: 100%;
-  max-width: 1080px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 20px;
+  padding: var(--space-5);
   min-width: 0;
 }
 
-/* 标题装饰 */
+/* 标题装饰：左侧色条改为上下渐变的品牌色，比整块纯色更有细节 */
 .anime-title {
   position: relative;
   padding-left: 14px;
   font-weight: 600;
+  color: var(--text-strong);
 }
 
 .anime-title::before {
@@ -108,18 +364,8 @@ html, body {
   transform: translateY(-50%);
   width: 5px;
   height: 70%;
-  border-radius: 3px;
-  background: var(--anime-gradient);
-}
-
-/* 链接与文本 */
-a {
-  color: var(--anime-pink);
-  text-decoration: none;
-}
-
-a:hover {
-  color: #e04e82;
+  border-radius: var(--radius-full);
+  background: linear-gradient(180deg, var(--brand-400), var(--brand-600));
 }
 
 /* 标签胶囊 */
@@ -127,150 +373,462 @@ a:hover {
   display: inline-block;
   padding: 3px 12px;
   margin: 0 6px 6px 0;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
   color: #fff;
   cursor: pointer;
-  transition: opacity 0.2s;
+  /* 内高光 + 微阴影：让胶囊有一点"厚度"，不是纯色色块 */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32),
+              0 1px 2px rgba(76, 44, 62, 0.12);
+  transition: transform var(--dur-fast) var(--ease-out),
+              filter var(--dur-fast) var(--ease-out);
 }
 
 .anime-tag:hover {
-  opacity: 0.85;
+  transform: translateY(-1px);
+  filter: brightness(1.04);
 }
 
 /* 多彩标签配色 */
-.anime-tag:nth-child(4n + 1) { background: var(--anime-pink); }
-.anime-tag:nth-child(4n + 2) { background: var(--anime-blue); }
-.anime-tag:nth-child(4n + 3) { background: var(--anime-mint); }
-.anime-tag:nth-child(4n + 4) { background: var(--anime-purple); }
+.anime-tag:nth-child(4n + 1) { background: var(--brand-500); }
+.anime-tag:nth-child(4n + 2) { background: var(--blue-500); }
+.anime-tag:nth-child(4n + 3) { background: var(--mint-500); }
+.anime-tag:nth-child(4n + 4) { background: var(--purple-500); }
 
-/* 滚动条美化 */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--anime-pink-light);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
+/* ============================================================
+   4. 组件层
+   ============================================================ */
+
+/* ---------- 4.1 卡片 ----------
+   注意这里用的是实体白底而不是半透明：
+   一个列表页可能有几十张卡片，全上毛玻璃会让滚动明显掉帧。
+   毛玻璃只留给导航栏和浮层这类"少量、固定位置"的元素。 */
+.anime-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  transition: transform var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
 }
 
-/* Markdown 内容样式 */
-.markdown-body {
-  line-height: 1.8;
-  font-size: 15px;
-  word-break: break-word;
-  /* 表格列数多时允许横向滚动，避免被挤压变形 */
-  overflow-x: auto;
+.anime-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-strong);
 }
 
-.markdown-body h1, .markdown-body h2, .markdown-body h3 {
-  margin: 1.2em 0 0.6em;
+/* 卡片层级变体：不是所有卡片都该浮起来。
+   flat 用于大面积静态容器（详情页正文、设置面板），
+   raised 用于需要强调的浮层。 */
+.anime-card--flat {
+  box-shadow: var(--shadow-xs);
+}
+
+.anime-card--flat:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.anime-card--raised {
+  box-shadow: var(--shadow-md);
+  border-color: transparent;
+}
+
+.anime-card--glass {
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* ---------- 4.2 按钮 ----------
+   以前 .anime-btn 这个类被引用了 100 多次，但全局从来没定义过，
+   于是每个页面自己写一遍按钮，高度/圆角/字重各不相同。
+   下面这套是唯一的按钮来源，新页面请直接用，不要另起炉灶。 */
+.anime-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
   color: var(--text-strong);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
 }
 
-.markdown-body h2 {
-  border-bottom: 2px solid var(--anime-pink-light);
-  padding-bottom: 0.3em;
+/* 按下反馈：下沉 1px + 轻微缩小，比单纯变透明有质感 */
+.anime-btn:active:not(:disabled):not(.is-disabled) {
+  transform: translateY(1px) scale(0.985);
 }
 
-.markdown-body code {
-  background: #f5f0f5;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Consolas', 'Courier New', monospace;
-  font-size: 0.9em;
+.anime-btn:disabled,
+.anime-btn.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
-.markdown-body pre {
-  background: #2d2a3a;
-  color: #e8e8f0;
-  padding: 16px;
-  border-radius: 10px;
-  overflow-x: auto;
+/* 主按钮：品牌渐变 + 顶部内高光（那道 1px 亮线是"实体感"的来源）+ 双层阴影 */
+.anime-btn--primary {
+  background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-400) 100%);
+  color: var(--text-on-brand);
+  border-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),
+              0 1px 2px rgba(160, 26, 86, 0.22),
+              var(--shadow-brand);
 }
 
-.markdown-body pre code {
+.anime-btn--primary:hover:not(:disabled):not(.is-disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5),
+              0 2px 4px rgba(160, 26, 86, 0.26),
+              0 12px 26px -8px rgba(255, 107, 157, 0.75);
+}
+
+/* 次级按钮：白底描边，用于"取消 / 次要操作" */
+.anime-btn--secondary {
+  background: var(--surface);
+  color: var(--text-strong);
+  border-color: var(--border-soft);
+  box-shadow: var(--shadow-xs);
+}
+
+.anime-btn--secondary:hover:not(:disabled):not(.is-disabled) {
+  border-color: var(--border-brand);
+  color: var(--brand-700);
+  background: var(--surface-pink);
+}
+
+/* 幽灵按钮：无底无框，用于工具栏、行内操作 */
+.anime-btn--ghost {
   background: transparent;
+  color: var(--text-body);
+  border-color: transparent;
+}
+
+.anime-btn--ghost:hover:not(:disabled):not(.is-disabled) {
+  background: var(--surface-pink);
+  color: var(--brand-700);
+}
+
+/* 危险按钮：退出登录、删除这类操作 */
+.anime-btn--danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: rgba(212, 71, 92, 0.22);
+}
+
+.anime-btn--danger:hover:not(:disabled):not(.is-disabled) {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* 实色危险按钮：用于"确认退订""确认删除"这类即将真正执行破坏性操作的按钮。
+   浅红底的 --danger 适合放在危险区里做入口，真正动手的那一下应该更醒目。 */
+.anime-btn--danger-solid {
+  background: linear-gradient(135deg, #e24b4a 0%, #ef6b6a 100%);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3),
+              0 1px 2px rgba(120, 20, 20, 0.22),
+              0 8px 18px -8px rgba(226, 75, 74, 0.75);
+}
+
+.anime-btn--danger-solid:hover:not(:disabled):not(.is-disabled) {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35),
+              0 12px 26px -8px rgba(226, 75, 74, 0.85);
+}
+
+/* 尺寸变体 */
+.anime-btn--sm {
+  height: 30px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+
+.anime-btn--lg {
+  height: 46px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-md);
+  border-radius: var(--radius-lg);
+}
+
+.anime-btn--block {
+  display: flex;
+  width: 100%;
+}
+
+.anime-btn--pill {
+  border-radius: var(--radius-full);
+}
+
+/* ---------- 4.3 输入框 ---------- */
+.anime-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-strong);
+  font-size: var(--text-base);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
+}
+
+.anime-input::placeholder {
+  color: var(--text-faint);
+}
+
+/* 聚焦：边框变品牌色 + 一圈 3px 光环。
+   光环用 box-shadow 而不是 outline，这样能和圆角贴合。 */
+.anime-input:hover:not(:disabled):not(:focus) {
+  border-color: var(--border-strong);
+}
+
+.anime-input:focus {
+  border-color: var(--brand-400);
+  box-shadow: 0 0 0 3.5px rgba(255, 107, 157, 0.16);
+}
+
+.anime-input:disabled {
+  background: var(--surface-sunk);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+/* 校验失败态 */
+.anime-input.is-error {
+  border-color: var(--danger);
+}
+
+.anime-input.is-error:focus {
+  box-shadow: 0 0 0 3.5px rgba(212, 71, 92, 0.14);
+}
+
+textarea.anime-input {
+  height: auto;
+  padding: var(--space-3) var(--space-4);
+  line-height: 1.7;
+  resize: vertical;
+}
+
+/* ---------- 4.4 徽章 ---------- */
+.anime-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* 状态点：比一整块标签更轻量，用于"草稿/已发布"这类状态 */
+.anime-badge--dot {
+  min-width: 0;
+  width: 7px;
+  height: 7px;
   padding: 0;
+  border-radius: 50%;
 }
 
-/* 没有语法高亮的代码块（如缩进代码）才继承 pre 的颜色；
-   带 .hljs 的代码块由高亮主题自己上色，不能让 color:inherit 把 token 颜色覆盖掉 */
-.markdown-body pre code:not(.hljs) {
-  color: inherit;
+.anime-badge--soft {
+  background: var(--surface-pink);
+  color: var(--brand-700);
 }
 
-.markdown-body img {
-  max-width: 100%;
-  border-radius: 10px;
+/* ---------- 4.5 分段切换（Tab / 筛选药丸）----------
+   "一排药丸，选中实心"这个模式在政策页、举报管理、首页排序里各写了一遍，
+   圆角 999px 和 20px 混用，选中色也从 #ff6b9d 写到 #ff8fb5 各不相同。
+   统一到这里，页面里只用 .anime-tab，选中态加 .on。 */
+.anime-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-/* ============ 正文防溢出（手机端关键）============
-   正文是用户自己写的，里面可能有宽表格、长链接、长英文单词。
-   这些都会产生很大的「最小宽度」，把移动端布局顶破。
-   统一让它们自己滚动或换行，别影响整页宽度。 */
+.anime-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: transform var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+}
+
+.anime-tab:hover {
+  color: var(--brand-700);
+  border-color: var(--border-brand);
+  background: var(--surface-pink);
+}
+
+.anime-tab:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+/* 选中态：和主按钮同一套"渐变 + 内高光 + 品牌辉光" */
+.anime-tab.on,
+.anime-tab.is-on {
+  background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%);
+  border-color: transparent;
+  color: var(--text-on-brand);
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42),
+              var(--shadow-brand);
+}
+
+/* ---------- 4.6 分割线 ---------- */
+.anime-divider {
+  height: 1px;
+  margin: var(--space-5) 0;
+  border: none;
+  background: linear-gradient(90deg, transparent, var(--border-soft) 18%, var(--border-soft) 82%, transparent);
+}
+
+/* ---------- 4.7 空状态 ----------
+   所有页面的"暂无数据"以前是一行灰字，改成有容器的占位块。 */
+.anime-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-10) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunk);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* 表格 / 卡片内部的空状态：去掉底色和厚内边距。
+   它已经在一个有边框的容器里了，再套一层灰块会显得像"块中块"。 */
+.anime-empty--inline {
+  padding: var(--space-5) var(--space-4);
+  background: transparent;
+  border-radius: 0;
+}
+
+/* ---------- 4.8 骨架屏 ----------
+   列表页以前用 v-loading 的转圈遮罩：一整块灰纱盖住内容，
+   只告诉用户"在等"，不告诉他"等的是什么"。骨架屏画出内容的形状，
+   感知等待时间更短，加载完成也不会跳版。
+   形状本身由组件负责（见 components/SkeletonPostList.vue），
+   这里只提供通用的"灰块 + 掠光"。 */
+.anime-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-sunk);
+  /* 防止骨架块被 flex/grid 压扁 */
+  flex-shrink: 0;
+}
+
+/* 掠光用伪元素横穿，比整块闪烁（opacity 动画）更耐看，
+   也不会在某些屏幕（PWM 低频调光）上闪得难受 */
+.anime-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--skeleton-sheen), transparent);
+  animation: skeleton-sheen 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-sheen {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ============================================================
+   5. Markdown 正文
+   ============================================================ */
 .markdown-body {
+  line-height: 1.85;
+  font-size: var(--text-md);
+  color: var(--text-body);
+  /* 正文是用户自己写的，里面可能有宽表格、长链接、长英文单词。
+     这些都会产生很大的「最小宽度」，把移动端布局顶破。
+     统一让它们自己滚动或换行，别影响整页宽度。 */
   overflow-wrap: break-word;
   word-break: break-word;
-}
-
-/* 宽表格：整张表可横向滚动，而不是把页面撑宽（GitHub 同款做法） */
-.markdown-body table {
-  display: block;
-  width: max-content;
-  max-width: 100%;
   overflow-x: auto;
 }
 
-.markdown-body pre {
-  max-width: 100%;
-}
-
-.markdown-body img {
-  height: auto;
-}
-
-.markdown-body blockquote {
-  border-left: 4px solid var(--anime-purple);
-  background: var(--anime-purple-light);
-  padding: 10px 16px;
-  border-radius: 0 8px 8px 0;
-  margin: 1em 0;
-}
-
-.markdown-body table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 1em 0;
-}
-
-/* 列数多时给单元格保底宽度，超出部分由 .markdown-body 横向滚动 */
-.markdown-body th,
-.markdown-body td {
-  min-width: 80px;
-}
-
-.markdown-body th, .markdown-body td {
-  border: 1px solid #e8d8e8;
-  padding: 8px 12px;
-}
-
-.markdown-body th {
-  background: var(--anime-pink-light);
-}
-
-/* 编辑器产出内容的其他常用排版 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
 .markdown-body h4,
 .markdown-body h5,
 .markdown-body h6 {
-  margin: 1em 0 0.5em;
+  margin: 1.3em 0 0.6em;
   color: var(--text-strong);
+  font-weight: 600;
+  line-height: 1.35;
 }
 
+.markdown-body h2 {
+  border-bottom: 2px solid var(--brand-200);
+  padding-bottom: 0.3em;
+}
+
+/* 正文标题的字号刻意保持接近浏览器默认（h1 30 / h2 24 / h3 20），
+   不要因为"有令牌了"就顺手改小 —— 用户写文章时是照默认预览排的版。 */
+.markdown-body h1 { font-size: var(--text-3xl); }
+.markdown-body h2 { font-size: var(--text-2xl); }
+.markdown-body h3 { font-size: var(--text-xl); }
+
 .markdown-body p {
-  margin: 0.8em 0;
+  margin: 0.85em 0;
 }
 
 .markdown-body ul,
@@ -283,24 +841,104 @@ a:hover {
   margin: 0.3em 0;
 }
 
-.markdown-body a {
-  color: #e04e82;
-  text-decoration: underline;
+.markdown-body li::marker {
+  color: var(--brand-400);
 }
 
-.markdown-body hr {
-  border: none;
-  border-top: 1px dashed #f0d8e0;
-  margin: 1.6em 0;
+.markdown-body a {
+  color: var(--brand-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  /* 下划线用 400 而不是 300：300 在暗色模式下会翻转成深色，下划线就消失了 */
+  text-decoration-color: var(--brand-400);
+  transition: text-decoration-color var(--dur-fast) var(--ease-out);
+}
+
+.markdown-body a:hover {
+  text-decoration-color: var(--brand-600);
+}
+
+.markdown-body code {
+  background: var(--surface-sunk);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--brand-800);
+}
+
+.markdown-body pre {
+  background: #2d2a3a;
+  color: #e8e8f0;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  max-width: 100%;
+  box-shadow: var(--shadow-md);
+}
+
+.markdown-body pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.88em;
+}
+
+/* 没有语法高亮的代码块（如缩进代码）才继承 pre 的颜色；
+   带 .hljs 的代码块由高亮主题自己上色，不能让 color:inherit 把 token 颜色覆盖掉 */
+.markdown-body pre code:not(.hljs) {
+  color: inherit;
+}
+
+.markdown-body blockquote {
+  border-left: 4px solid var(--purple-500);
+  background: var(--purple-100);
+  padding: 10px 16px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin: 1em 0;
+  color: var(--text-body);
+}
+
+/* 宽表格：整张表可横向滚动，而不是把页面撑宽（GitHub 同款做法） */
+.markdown-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+/* 列数多时给单元格保底宽度，超出部分由表格自己横向滚动 */
+.markdown-body th,
+.markdown-body td {
+  min-width: 80px;
+  border: 1px solid var(--border-soft);
+  padding: 8px 12px;
+}
+
+.markdown-body th {
+  background: var(--brand-100);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.markdown-body table tr:nth-child(even) {
+  background: var(--surface-soft);
 }
 
 .markdown-body img {
   display: block;
+  max-width: 100%;
+  height: auto;
   margin: 1em auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
-.markdown-body table tr:nth-child(even) {
-  background: #fdf8fb;
+.markdown-body hr {
+  border: none;
+  border-top: 1px dashed var(--border-soft);
+  margin: 1.6em 0;
 }
 
 /* ============ 代码块一键复制 ============ */
@@ -313,40 +951,200 @@ a:hover {
   position: absolute;
   top: 8px;
   right: 8px;
-  padding: 4px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.1);
   color: #e8e8f0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   cursor: pointer;
-  opacity: 0.7;
-  transition: opacity 0.2s;
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
 }
 
-.code-copy-btn:hover {
+/* 悬浮到代码块上才出现，避免一堆按钮挂着干扰阅读；键盘聚焦时也要出现 */
+.code-block:hover .code-copy-btn,
+.code-copy-btn:focus-visible {
   opacity: 1;
 }
 
-/* ============ 深色模式（best-effort 覆盖主要界面） ============ */
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================
+   6. Element Plus 对齐
+   ------------------------------------------------------------
+   组件库自带的方角、灰色阴影和这套樱花圆角体系不搭，
+   这里做一次统一，页面里就不用每个用到的地方再补一遍。
+   ============================================================ */
+.el-button {
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.el-button--primary {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4),
+              0 1px 2px rgba(160, 26, 86, 0.2),
+              0 6px 16px -8px rgba(255, 107, 157, 0.6);
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px var(--border-soft) inset;
+  transition: box-shadow var(--dur-base) var(--ease-out);
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focused {
+  box-shadow: 0 0 0 1px var(--brand-400) inset,
+              0 0 0 3.5px rgba(255, 107, 157, 0.14);
+}
+
+.el-dialog,
+.el-message-box {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-soft);
+}
+
+.el-message {
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-soft);
+}
+
+.el-card {
+  border-radius: var(--radius-lg);
+  border-color: var(--border-soft);
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.el-table {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  background: var(--surface-soft) !important;
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.el-tag {
+  border-radius: var(--radius-full);
+}
+
+.el-pagination.is-background .el-pager li,
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .btn-next {
+  border-radius: var(--radius-sm);
+  transition: all var(--dur-fast) var(--ease-out);
+}
+
+.el-pagination.is-background .el-pager li:not(.is-active):hover {
+  background: var(--brand-100);
+  color: var(--brand-700);
+}
+
+.el-dropdown-menu,
+.el-select-dropdown {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-soft);
+}
+
+.el-dropdown-menu__item {
+  border-radius: var(--radius-sm);
+  margin: 0 4px;
+}
+
+.el-dropdown-menu__item:not(.is-disabled):hover {
+  background: var(--surface-pink);
+  color: var(--brand-700);
+}
+
+/* ============================================================
+   7. 暗色模式
+   ------------------------------------------------------------
+   核心变化：改成"覆盖令牌"而不是"覆盖类名"。
+   组件里凡是用 var(--surface) / var(--text-body) 写的样式，
+   下面只要改一次变量就全部跟着变，新增页面也不会漏。
+   后面那组按类名列举的覆盖是为了兜住页面里写死的硬编码颜色，
+   新页面请尽量用变量，不要往这个名单里加新条目。
+   ============================================================ */
 [data-theme='dark'] {
-  --anime-bg: #16161f;
-  --anime-text: #d8d8e4;
-  --anime-pink-light: #5a3a48;
-  --anime-blue-light: #2a3d48;
-  --anime-purple-light: #38304a;
+  /* 品牌色在深色底上要提亮，否则 #ff6b9d 会显闷 */
+  --brand-100: #3a2530;
+  --brand-200: #4a2c3a;
+  --brand-300: #6b3b52;
+  --brand-400: #ffa8c6;
+  --brand-500: #ff8fb5;
+  --brand-600: #ff9ec4;
+  --brand-700: #ffb8d5;
+  --brand-800: #ffcbe0;
+  --brand-900: #ffdcea;
 
-  /* 暗色下的文字色阶：整体提亮，保证在深色卡片上读得清 */
+  --blue-100:   #22323c;
+  --blue-300:   #35586b;
+  --purple-100: #2e2740;
+  --purple-300: #4a3f66;
+  --mint-100:   #1f3733;
+  --amber-100:  #3a2f1c;
+
+  /* 辅助色相的 700 级 = "可写文字的安全色"，和 --brand-700 一样必须翻转。
+     之前只翻了品牌色，其它四个色相的 700 还是深色，深色文字压在深色底上
+     等于不可见（收藏按钮、紫色链接都栽在这上面）。 */
+  --blue-700:   #8fcbe6;
+  --mint-700:   #8fdcc0;
+  --purple-700: #c3adea;
+  --amber-700:  #f0cd7a;
+
+  --success-soft: #17332b;
+  --warning-soft: #332914;
+  --danger-soft:  #3a1f26;
+  --info-soft:    #1c2c3d;
+
   --text-strong: #eaeaf4;
-  --text-body: #bcbccc;
-  --text-muted: #9494a8;
-  --text-faint: #7c7c90;
+  --text-body:   #c2c2d2;
+  --text-muted:  #9e9eb2;
+  --text-faint:  #85859a;
 
-  /* 暗色下的表面与描边 */
-  --surface: #20202c;
-  --surface-soft: #262633;
-  --surface-pink: #3a2530;
-  --border-soft: rgba(255, 255, 255, 0.1);
+  --surface:       #20202c;
+  --surface-soft:  #262633;
+  --surface-sunk:  #1b1b26;
+  --surface-pink:  #3a2530;
+  --surface-glass: rgba(22, 22, 31, 0.82);
+  --scrim:         rgba(0, 0, 0, 0.62);
+
+  --border-soft:   rgba(255, 255, 255, 0.09);
+  --border-softer: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-brand:  rgba(255, 143, 181, 0.32);
+  /* 暗色下的掠光要弱得多，否则骨架块会像在闪灯 */
+  --skeleton-sheen: rgba(255, 255, 255, 0.07);
+
+  /* 暗色下的阴影用纯黑，且要更重才看得出层次 */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3),
+               0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.35),
+               0 8px 22px -8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.35),
+               0 18px 40px -14px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 4px 10px rgba(0, 0, 0, 0.4),
+               0 32px 64px -20px rgba(0, 0, 0, 0.7);
+  --shadow-brand: 0 8px 20px -8px rgba(255, 107, 157, 0.5);
+
+  --anime-bg: #16161f;
+  --anime-blue-light: var(--blue-300);
+  --anime-purple-light: var(--purple-300);
+  --anime-pink-light: var(--brand-200);
 }
 
 [data-theme='dark'] #app {
@@ -355,7 +1153,7 @@ a:hover {
 
 [data-theme='dark'] body {
   background: #16161f;
-  color: #d8d8e4;
+  color: var(--text-body);
 }
 
 /* 首页 hero：暗色下把白色遮罩换成深色，否则一大块惨白很刺眼。
@@ -376,7 +1174,9 @@ html[data-theme='dark'] .hero-subtitle {
   text-shadow: none;
 }
 
-/* 卡片：全局的 anime-card 与各页面常见的白底卡片 */
+/* 卡片：全局的 anime-card 与各页面常见的白底卡片。
+   这些类名是页面里写死的，走不了变量，只能逐个兜住。
+   新增页面请直接用 .anime-card，不要再造新类名。 */
 [data-theme='dark'] .anime-card,
 [data-theme='dark'] .stat-card,
 [data-theme='dark'] .side-card,
@@ -385,18 +1185,18 @@ html[data-theme='dark'] .hero-subtitle {
 [data-theme='dark'] .count-item,
 [data-theme='dark'] .copyright,
 [data-theme='dark'] .related {
-  background: #20202c;
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  background: var(--surface);
+  border-color: var(--border-soft);
+  box-shadow: var(--shadow-md);
 }
 
 [data-theme='dark'] .navbar {
-  background: rgba(22, 22, 31, 0.9);
-  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: var(--surface-glass);
+  border-bottom-color: var(--border-soft);
 }
 
 [data-theme='dark'] .user-dropdown {
-  background: #20202c;
+  background: var(--surface);
 }
 
 [data-theme='dark'] .user-name,
@@ -407,37 +1207,94 @@ html[data-theme='dark'] .hero-subtitle {
 [data-theme='dark'] .related-title,
 [data-theme='dark'] .page-title,
 [data-theme='dark'] .section-title {
-  color: #e8e8f0;
+  color: var(--text-strong);
 }
 
 [data-theme='dark'] .dropdown-item:hover {
-  background: #2a2a38;
+  background: var(--surface-pink);
 }
 
 /* Markdown 正文 */
-[data-theme='dark'] .markdown-body h1,
-[data-theme='dark'] .markdown-body h2,
-[data-theme='dark'] .markdown-body h3,
-[data-theme='dark'] .markdown-body h4,
-[data-theme='dark'] .markdown-body h5,
-[data-theme='dark'] .markdown-body h6 {
-  color: #e8e8f0;
+[data-theme='dark'] .markdown-body code {
+  background: var(--surface-soft);
+  /* 暗色下 --brand-700 是提亮过的浅粉，用它写字才看得清；
+     用 --brand-300 会得到一块深色文字压在深色底上。 */
+  color: var(--brand-700);
 }
 
-[data-theme='dark'] .markdown-body code {
-  background: #2a2a38;
-  color: #ffb3cd;
-}
+/* 标签胶囊在暗色下要单独给一组"中深彩底"：
+   浅色模式下 500 级的粉/蓝/绿做底、白字勉强能看，
+   但同样的底色放到深色界面里就会亮得刺眼、白字直接糊住。
+   这组色是压暗后的同色相，白字对比度都在 5:1 以上。 */
+[data-theme='dark'] .anime-tag:nth-child(4n + 1) { background: #b8426e; }
+[data-theme='dark'] .anime-tag:nth-child(4n + 2) { background: #35708c; }
+[data-theme='dark'] .anime-tag:nth-child(4n + 3) { background: #357a63; }
+[data-theme='dark'] .anime-tag:nth-child(4n + 4) { background: #68579a; }
 
 [data-theme='dark'] .markdown-body th,
 [data-theme='dark'] .markdown-body td {
-  border-color: #3a3a4a;
+  border-color: var(--border-soft);
+}
+
+[data-theme='dark'] .markdown-body th {
+  background: var(--surface-soft);
 }
 
 [data-theme='dark'] .markdown-body table tr:nth-child(even) {
-  background: #1c1c28;
+  background: var(--surface-soft);
 }
 
 [data-theme='dark'] .markdown-body blockquote {
-  background: #2a2a38;
+  background: var(--surface-soft);
+}
+
+/* ============================================================
+   8. 无障碍与动效降级
+   ============================================================ */
+
+/* 焦点环：全站统一。
+   用 :focus-visible 而不是 :focus —— 鼠标点击按钮不该出现光环，
+   只有键盘 Tab 过来的才出现。这是"对键盘用户友好"和"视觉干净"的平衡点。
+   注意这里不能改 border-radius：outline 会自己跟随元素的圆角，
+   而写一条 border-radius 会在获得焦点的瞬间把卡片从 18px 掰成 6px。 */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+/* 读屏器专用：视觉上隐藏但保留在无障碍树里 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 尊重系统的"减少动态效果"设置。
+   前庭功能障碍用户会因为过度动画产生眩晕，这不是可选项。
+   顺带把 scroll-behavior 也关掉 —— 平滑滚动开太久同样难受。 */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

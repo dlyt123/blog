@@ -76,7 +76,7 @@ async function submit() {
           <label>确认密码 <span class="req">*</span></label>
           <input v-model="form.confirm" type="password" class="anime-input" placeholder="再次输入密码" autocomplete="new-password" />
         </div>
-        <button type="submit" class="anime-btn register-btn" :disabled="loading" @click="submit">
+        <button type="submit" class="anime-btn anime-btn--primary register-btn" :disabled="loading" @click="submit">
           {{ loading ? '注册中...' : '注 册' }}
         </button>
         <p class="hint">
@@ -95,33 +95,34 @@ async function submit() {
 .register-wrap {
   display: flex;
   justify-content: center;
-  padding: 48px 20px 40px;
+  padding: var(--space-10) var(--space-5) var(--space-8);
   min-height: 70vh;
 }
 
 .register-card {
   width: 420px;
-  padding: 36px;
+  padding: var(--space-8);
 }
 
 .register-title {
   text-align: center;
-  color: #e04e82;
+  color: var(--brand-700);
   margin: 0 0 6px;
-  font-size: 22px;
+  font-size: var(--text-2xl);
+  font-weight: 600;
 }
 
 .subtitle {
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
-  margin: 0 0 24px;
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-6);
 }
 
 .register-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3);
 }
 
 .form-item {
@@ -131,63 +132,34 @@ async function submit() {
 }
 
 .form-item label {
-  font-size: 13px;
-  color: #6a6a7a;
+  font-size: var(--text-sm);
+  color: var(--text-body);
 }
 
+/* 必填星号用语义色，而不是品牌色 —— "必填"是状态信息，不该跟主题色混在一起 */
 .form-item .req {
-  color: #e04e82;
+  color: var(--danger);
 }
 
-.anime-input {
-  width: 100%;
-  height: 42px;
-  padding: 0 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-}
+/* 输入框外观统一由全局 .anime-input 提供，本页不再重复定义 */
 
-.anime-input:focus {
-  border-color: #e04e82;
-  box-shadow: 0 0 0 3px rgba(224, 78, 130, 0.1);
-}
-
+/* 只定尺寸；渐变、内高光、辉光、按下反馈来自全局 .anime-btn--primary */
 .register-btn {
   width: 100%;
-  height: 44px;
+  height: 46px;
   margin-top: 6px;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.register-btn:hover:not(:disabled) {
-  opacity: 0.92;
-}
-
-.register-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  font-size: var(--text-md);
 }
 
 .hint {
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin: 4px 0 0;
 }
 
 .link {
-  color: #e04e82;
+  color: var(--brand-700);
   font-weight: 600;
 }
 </style>

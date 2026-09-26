@@ -108,6 +108,7 @@ const routes = [
       { path: 'subscribes', name: 'admin-subscribes', component: () => import('@/views/admin/SubscriberManage.vue') },
       { path: 'visits', name: 'admin-visits', component: () => import('@/views/admin/VisitLog.vue') },
       { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/SettingManage.vue') },
+  { path: 'users', name: 'admin-users', component: () => import('@/views/admin/UserManage.vue') },
       { path: 'stats', name: 'admin-stats', component: () => import('@/views/admin/Stats.vue') }
     ]
   }

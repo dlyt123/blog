@@ -120,7 +120,7 @@ async function submit() {
         <!-- type=submit 让回车也能登录；@click 再绑一次确保点击生效 -->
         <button
           type="submit"
-          class="anime-btn login-btn"
+          class="anime-btn anime-btn--primary login-btn"
           :disabled="loading"
           @click="submit"
         >
@@ -156,15 +156,16 @@ async function submit() {
 
 .login-title {
   text-align: center;
-  color: #e04e82;
-  margin: 0 0 28px;
-  font-size: 22px;
+  color: var(--brand-700);
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-2xl);
+  font-weight: 600;
 }
 
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--space-4);
 }
 
 .form-item {
@@ -174,26 +175,12 @@ async function submit() {
 }
 
 .form-item label {
-  font-size: 13px;
-  color: #6a6a7a;
+  font-size: var(--text-sm);
+  color: var(--text-body);
 }
 
-.anime-input {
-  width: 100%;
-  height: 42px;
-  padding: 0 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-}
-
-.anime-input:focus {
-  border-color: #e04e82;
-  box-shadow: 0 0 0 3px rgba(224, 78, 130, 0.1);
-}
+/* 输入框的外观（宽度/高度/圆角/悬停/焦点环/禁用态）全部来自全局的 .anime-input，
+   这里不再重复写一遍 —— 重复写就会出现"这个页面 10px 圆角、那个页面 8px"的问题。 */
 
 /* 验证码：输入框 + 图片并排 */
 .captcha-row {
@@ -209,7 +196,7 @@ async function submit() {
 .captcha-img {
   width: 120px;
   height: 42px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
   cursor: pointer;
   flex-shrink: 0;
@@ -218,46 +205,27 @@ async function submit() {
 }
 
 .captcha-retry {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
+/* 这里只定尺寸；渐变、内高光、辉光、按下反馈全部来自全局 .anime-btn--primary */
 .login-btn {
   width: 100%;
-  height: 44px;
+  height: 46px;
   margin-top: 6px;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s, transform 0.1s;
-}
-
-.login-btn:hover:not(:disabled) {
-  opacity: 0.92;
-}
-
-.login-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.login-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  font-size: var(--text-md);
 }
 
 .hint {
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
   margin: 4px 0 0;
 }
 
 .link {
-  color: #e04e82;
+  color: var(--brand-700);
   font-weight: 600;
 }
 </style>

@@ -117,9 +117,9 @@ blog:
   # 过期数据清理
   cleanup:
     # 访客记录保留天数
-    visit-days: ${BLOG_CLEANUP_VISIT_DAYS:90}
+    visit-days: ${BLOG_CLEANUP_VISIT_DAYS:180}
     # 操作日志保留天数
-    operation-days: ${BLOG_CLEANUP_OPERATION_DAYS:180}
+    operation-days: ${BLOG_CLEANUP_OPERATION_DAYS:365}
     # 执行时间（cron 表达式），默认每天 04:00
     cron: ${BLOG_CLEANUP_CRON:0 0 4 * * ?}
   # 登录保护

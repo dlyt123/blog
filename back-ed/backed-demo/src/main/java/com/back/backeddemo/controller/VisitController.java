@@ -1,6 +1,7 @@
 package com.back.backeddemo.controller;
 
 import com.back.backeddemo.common.ClientInfo;
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.VisitLog;
 import com.back.backeddemo.mapper.VisitLogMapper;
@@ -67,23 +68,22 @@ public class VisitController {
 
     /** 访问记录列表 */
     @GetMapping("/api/admin/visits")
-    public Result<Map<String, Object>> list(@RequestParam(defaultValue = "1") Integer page,
-                                            @RequestParam(defaultValue = "20") Integer pageSize,
+    public Result<Map<String, Object>> list(@RequestParam(defaultValue = "1") int page,
+                                            @RequestParam(defaultValue = "20") int pageSize,
                                             @RequestParam(required = false) String userType,
                                             @RequestParam(required = false) String keyword) {
-        int p = page == null || page < 1 ? 1 : page;
-        int size = pageSize == null || pageSize < 1 ? 20 : Math.min(pageSize, 100);
+        PageQuery pq = PageQuery.of(page, pageSize);
         String type = userType == null ? "all" : userType;
         String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
 
-        List<VisitLog> list = visitLogMapper.list(type, kw, (p - 1) * size, size);
+        List<VisitLog> list = visitLogMapper.list(type, kw, pq.offset(), pq.size());
         long total = visitLogMapper.count(type, kw);
 
         Map<String, Object> data = new HashMap<>();
         data.put("list", list);
         data.put("total", total);
-        data.put("page", p);
-        data.put("pageSize", size);
+        data.put("page", pq.page());
+        data.put("pageSize", pq.size());
         return Result.success(data);
     }
 

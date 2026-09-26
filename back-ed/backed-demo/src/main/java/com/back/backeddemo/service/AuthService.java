@@ -33,6 +33,7 @@ public class AuthService {
     private final LoginAttemptService loginAttemptService;
     private final MailService mailService;
     private final SettingMapper settingMapper;
+    private final SensitiveWordService sensitiveWordService;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     @Value("${blog.site-url:http://localhost:8080}")
@@ -48,13 +49,15 @@ public class AuthService {
 
     public AuthService(UserMapper userMapper, JwtUtil jwtUtil,
                        CaptchaStore captchaStore, LoginAttemptService loginAttemptService,
-                       MailService mailService, SettingMapper settingMapper) {
+                       MailService mailService, SettingMapper settingMapper,
+                       SensitiveWordService sensitiveWordService) {
         this.userMapper = userMapper;
         this.jwtUtil = jwtUtil;
         this.captchaStore = captchaStore;
         this.loginAttemptService = loginAttemptService;
         this.mailService = mailService;
         this.settingMapper = settingMapper;
+        this.sensitiveWordService = sensitiveWordService;
     }
 
     /**
@@ -87,6 +90,13 @@ public class AuthService {
                     "用户名或密码错误，还可尝试 " + loginAttemptService.remaining(username) + " 次");
         }
         loginAttemptService.clear(username);
+        // ④ 封号检查：放在密码校验之后 —— 避免通过"这个账号是否被封"反推账号是否存在
+        if (user.bannedNow()) {
+            log.info("[封禁] 已封号账号尝试登录：{}", user.getUsername());
+            throw new BusinessException(403, "该账号已被封禁"
+                    + (user.getBanReason() != null && !user.getBanReason().isBlank()
+                        ? "：" + user.getBanReason() : ""));
+        }
         return buildLoginResult(user);
     }
 
@@ -103,6 +113,9 @@ public class AuthService {
         if (userMapper.findByUsername(username.trim()) != null) {
             throw new BusinessException(400, "用户名已被占用");
         }
+        // 用户名和昵称也是「用户能写字的地方」，一样过敏感词
+        sensitiveWordService.validate(username, "注册用户名");
+        sensitiveWordService.validate(nickname, "注册昵称");
         User user = new User();
         user.setUsername(username.trim());
         user.setPassword(encoder.encode(password));
@@ -141,6 +154,8 @@ public class AuthService {
         // 防止通过资料更新接口篡改角色与用户名
         user.setRole(null);
         user.setUsername(null);
+        // 昵称也是「用户能写字的地方」，一样过敏感词
+        sensitiveWordService.validate(user.getNickname(), "修改昵称");
 
         // 一个字段都没改就别往下走了：Mapper 的动态 SET 会拼成
         // "UPDATE user WHERE id=?"，直接触发 SQL 语法错误（500）。

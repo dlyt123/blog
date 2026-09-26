@@ -140,7 +140,7 @@ async function onFileChange(e) {
             class="hidden-file"
             @change="onFileChange"
           />
-          <button class="anime-btn ghost" :disabled="uploading" @click="pickFile">
+          <button class="anime-btn anime-btn--secondary" :disabled="uploading" @click="pickFile">
             {{ uploading ? '上传中...' : '选择图片' }}
           </button>
           <p v-if="form.avatar" class="avatar-path">当前头像：{{ form.avatar }}</p>
@@ -179,10 +179,10 @@ async function onFileChange(e) {
       </div>
 
       <div class="action-row">
-        <button class="anime-btn primary" :disabled="loading" @click="save">
+        <button class="anime-btn anime-btn--primary" :disabled="loading" @click="save">
           {{ loading ? '保存中...' : '保存修改' }}
         </button>
-        <button class="anime-btn logout-btn" @click="logout">退出登录</button>
+        <button class="anime-btn anime-btn--secondary logout-btn" @click="logout">退出登录</button>
       </div>
 
       <!-- 危险操作区 -->
@@ -192,7 +192,7 @@ async function onFileChange(e) {
           注销账号会永久删除你的账号及个人数据，<b>不可恢复</b>。
           你发布的文章会保留，但作者信息会被匿名。
         </p>
-        <button class="anime-btn danger-btn" @click="handleDeleteAccount">注销我的账号</button>
+        <button class="anime-btn anime-btn--danger" @click="handleDeleteAccount">注销我的账号</button>
       </div>
     </div>
   </div>
@@ -202,38 +202,41 @@ async function onFileChange(e) {
 .profile-wrap {
   max-width: 720px;
   margin: 0 auto;
-  padding: 32px 20px;
+  padding: var(--space-8) var(--space-5);
 }
 
 .profile-card {
-  padding: 32px;
+  padding: var(--space-8);
 }
 
 .profile-title {
-  color: #e04e82;
-  margin: 0 0 24px;
-  font-size: 22px;
+  color: var(--brand-700);
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .avatar-row {
   display: flex;
   gap: 18px;
   align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 24px;
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-6);
   border-bottom: 1px dashed var(--border-soft);
 }
 
 .avatar-preview {
   width: 72px;
   height: 72px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   overflow: hidden;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb);
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  /* 浅色渐变底上用品牌深色字，白字在这个底上几乎看不到 */
+  color: var(--brand-800);
   font-weight: 700;
   font-size: 28px;
   flex-shrink: 0;
@@ -250,9 +253,9 @@ async function onFileChange(e) {
 }
 
 .avatar-tip p {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-2);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 /* 隐藏原生 file input，用按钮触发 */
@@ -260,130 +263,67 @@ async function onFileChange(e) {
   display: none;
 }
 
-.anime-btn.ghost {
-  background: var(--surface-pink);
-  color: #e04e82;
-  border: 1px solid #ffb3cd;
-  height: 36px;
-  padding: 0 18px;
-}
+/* 按钮外观统一由全局的 .anime-btn 提供（src/styles/anime.css），本页不再自己实现。 */
 
 .avatar-path {
-  margin: 8px 0 0;
-  color: #c0b0c0;
-  font-size: 12px;
+  margin: var(--space-2) 0 0;
+  color: var(--text-faint);
+  font-size: var(--text-xs);
   word-break: break-all;
 }
 
 .form-grid {
   display: grid;
   gap: 18px;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .form-item label {
   display: block;
-  font-size: 13px;
-  color: #6a6a7a;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-body);
   margin-bottom: 6px;
 }
 
-.anime-input {
-  width: 100%;
-  height: 40px;
-  padding: 0 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  font-size: 14px;
-  outline: none;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-
-.anime-input:focus:not(:disabled) {
-  border-color: #e04e82;
-  box-shadow: 0 0 0 3px rgba(224, 78, 130, 0.1);
-}
-
-.anime-input:disabled {
-  background: var(--surface-soft);
-  color: #999;
-  cursor: not-allowed;
-}
+/* 输入框外观统一由全局 .anime-input 提供（42px 高、10px 圆角、品牌色聚焦环）。
+   本页以前又整块重写了一遍并改成 40px —— scoped 特异性 +1 会盖住全局规则，
+   于是同一个"输入框"在个人资料页比别处矮 2px。已删除。 */
 
 .form-hint {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
 .action-row {
   display: flex;
-  gap: 12px;
-  margin-top: 8px;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
 }
 
-.anime-btn {
-  height: 42px;
-  padding: 0 22px;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.anime-btn.primary {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-}
-
-.anime-btn.logout-btn {
-  background: var(--surface);
-  color: #888;
-  border: 1px solid var(--border-soft);
-}
-
-.anime-btn:hover:not(:disabled) {
-  opacity: 0.92;
-}
-
-.anime-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* 主/次/危险按钮的样式见全局 .anime-btn--primary / --secondary / --danger */
 
 /* ===== 危险操作区（注销账号）===== */
 .danger-zone {
-  margin-top: 36px;
-  padding-top: 22px;
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
   border-top: 1px dashed var(--border-soft);
 }
 
 .danger-title {
-  margin: 0 0 8px;
-  font-size: 14px;
-  color: #d05070;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--danger);
 }
 
 .danger-tip {
   margin: 0 0 14px;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.8;
 }
 
-.anime-btn.danger-btn {
-  height: 38px;
-  padding: 0 18px;
-  font-size: 13px;
-  background: var(--surface);
-  color: #e24b4a;
-  border: 1px solid #f0b6b5;
-}
-
-.anime-btn.danger-btn:hover {
-  background: #fef2f2;
-}
+/* 注销按钮用的是全局的 .anime-btn--danger */
 </style>

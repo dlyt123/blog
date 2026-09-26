@@ -24,8 +24,8 @@ function goBack() {
       <p class="sub">你访问的地址不存在，可能已经删除或链接有误。</p>
 
       <div class="actions">
-        <button class="btn primary" @click="goHome">回到首页</button>
-        <button class="btn ghost" @click="goBack">返回上一页</button>
+        <button class="anime-btn anime-btn--primary" @click="goHome">回到首页</button>
+        <button class="anime-btn anime-btn--secondary" @click="goBack">返回上一页</button>
       </div>
 
       <router-link to="/archives" class="archive-link">或者去归档页看看历史文章 →</router-link>
@@ -37,7 +37,7 @@ function goBack() {
 .notfound {
   display: flex;
   justify-content: center;
-  padding: 80px 20px;
+  padding: var(--space-12) var(--space-5);
   min-height: 60vh;
 }
 
@@ -45,64 +45,47 @@ function goBack() {
   max-width: 480px;
   width: 100%;
   text-align: center;
-  padding: 48px 32px;
+  padding: var(--space-12) var(--space-8);
 }
 
+/* 404 用品牌渐变做"文字剪裁"，比纯色更有记忆点 */
 .code {
   font-size: 96px;
   font-weight: 800;
   line-height: 1;
-  background: linear-gradient(135deg, #ff6b9d, #c8b6e8);
+  background: linear-gradient(135deg, var(--brand-500), var(--purple-500));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .msg {
   margin: 0 0 6px;
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: 600;
   color: var(--text-strong);
 }
 
 .sub {
-  margin: 0 0 28px;
+  margin: 0 0 var(--space-6);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .actions {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5);
 }
 
-.btn {
-  height: 40px;
-  padding: 0 22px;
-  border-radius: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn.primary {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  font-weight: 600;
-}
-
-.btn.ghost {
-  background: var(--surface);
-  border-color: var(--border-soft);
-  color: var(--text-body);
-}
+/* 两个按钮的外观来自全局 .anime-btn--primary / .anime-btn--secondary */
 
 .archive-link {
-  color: #e04e82;
-  font-size: 13px;
+  color: var(--brand-700);
+  font-size: var(--text-sm);
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 </style>

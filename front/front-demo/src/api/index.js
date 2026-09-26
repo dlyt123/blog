@@ -189,3 +189,11 @@ export async function adminExport() {
 }
 
 export const adminUpdateSettings = (data) => http.put('/admin/settings', data)
+
+// ===== 用户管理（封号 / 禁言）=====
+export const adminGetUsers = () => http.get('/admin/users')
+export const adminBanUser = (id, banned, reason) => http.put(`/admin/users/${id}/ban`, { banned, reason })
+export const adminMuteUser = (id, minutes, reason) => http.put(`/admin/users/${id}/mute`, { minutes, reason })
+
+// ===== 文章审核（先审后发）=====
+export const adminAuditPost = (id, pass, remark) => http.post(`/admin/posts/${id}/audit`, { pass, remark })

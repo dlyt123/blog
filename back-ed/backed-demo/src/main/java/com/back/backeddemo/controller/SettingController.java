@@ -3,6 +3,7 @@ package com.back.backeddemo.controller;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.Setting;
 import com.back.backeddemo.mapper.SettingMapper;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -55,7 +56,13 @@ public class SettingController {
         return Result.success(map);
     }
 
-    /** 更新站点设置（后台） */
+    /**
+     * 更新站点设置（后台）。
+     *
+     * <p>整批设置放在一个事务里：以前是逐个 upsert，中途失败会留下「改了一半」的站点配置，
+     * 而管理员看到的是报错 —— 最难排查的那种状态。
+     */
+    @Transactional
     @PutMapping("/api/admin/settings")
     public Result<Void> update(@RequestBody Map<String, String> body) {
         for (Map.Entry<String, String> entry : body.entrySet()) {

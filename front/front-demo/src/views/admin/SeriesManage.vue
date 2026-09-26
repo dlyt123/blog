@@ -80,7 +80,7 @@ async function remove(item) {
           <el-button size="small" type="danger" plain @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
-      <template #empty><p class="empty">还没有系列，点右上角「新建系列」创建～</p></template>
+      <template #empty><p class="anime-empty anime-empty--inline">📚 还没有系列，点右上角「新建系列」创建～</p></template>
     </el-table>
 
     <el-dialog v-model="dialog" :title="editing ? '编辑系列' : '新建系列'" width="480px">
@@ -100,6 +100,5 @@ async function remove(item) {
 <style scoped>
 .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .title { margin: 0; color: var(--text-strong); }
-.tip { margin: 0 0 14px; color: var(--text-muted); font-size: 12px; }
-.empty { color: var(--text-muted); padding: 20px; }
+.tip { margin: 0 0 14px; color: var(--text-muted); font-size: var(--text-xs); }
 </style>

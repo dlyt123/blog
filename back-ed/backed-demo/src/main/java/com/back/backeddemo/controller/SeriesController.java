@@ -1,6 +1,7 @@
 package com.back.backeddemo.controller;
 
 import com.back.backeddemo.common.BusinessException;
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.common.Validate;
@@ -51,12 +52,14 @@ public class SeriesController {
     public Result<PageResult<Post>> posts(@PathVariable Long id,
                                           @RequestParam(defaultValue = "1") int page,
                                           @RequestParam(defaultValue = "50") int pageSize) {
-        int size = Math.min(Math.max(pageSize, 1), 100);
-        int p = Math.max(page, 1);
-        List<Post> list = postMapper.listBySeries(id, (p - 1) * size, size);
+        PageQuery pq = PageQuery.of(page, pageSize);
+        List<Post> list = postMapper.listBySeries(id, pq.offset(), pq.size());
         PageResult<Post> result = new PageResult<>();
         result.setList(list == null ? new ArrayList<>() : list);
         result.setTotal(postMapper.countBySeries(id));
+        // 以前这里漏了 page / pageSize，前端拿到的永远是 0，和别的分页接口不一致
+        result.setPage(pq.page());
+        result.setPageSize(pq.size());
         return Result.success(result);
     }
 

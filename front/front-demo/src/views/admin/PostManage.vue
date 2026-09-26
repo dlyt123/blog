@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/store/user'
-import { adminGetPosts, adminDeletePost, adminPublishPost, adminPinPost, adminRecommendPost, adminBatchPosts } from '@/api'
+import { adminGetPosts, adminDeletePost, adminPublishPost, adminPinPost, adminRecommendPost, adminBatchPosts, adminAuditPost } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
@@ -57,6 +57,27 @@ async function recommend(row) {
   load()
 }
 
+async function audit(row, pass) {
+  if (pass) {
+    await adminAuditPost(row.id, true, null)
+    ElMessage.success('已通过并发布')
+    load()
+    return
+  }
+  try {
+    const { value } = await ElMessageBox.prompt(
+      '驳回后文章会退回草稿（前台不可见）。请填写驳回理由（作者能看到）：',
+      '驳回《' + (row.title || '') + '》',
+      { confirmButtonText: '驳回', cancelButtonText: '取消', inputValue: '内容不符合发布规范' }
+    )
+    await adminAuditPost(row.id, false, value || '内容不符合发布规范')
+    ElMessage.success('已驳回')
+    load()
+  } catch (e) {
+    // 用户取消
+  }
+}
+
 async function batch(action) {
   if (!selection.value.length) {
     ElMessage.warning('请先勾选文章')
@@ -102,9 +123,9 @@ function create() {
       <el-table-column v-if="isAdmin" prop="authorName" label="作者" width="110" />
       <el-table-column label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.status === 1 ? 'success' : 'info'">
-            {{ row.status === 1 ? '已发布' : '草稿' }}
-          </el-tag>
+      <el-tag :type="row.auditStatus === 1 ? 'warning' : row.auditStatus === 2 ? 'danger' : row.status === 1 ? 'success' : 'info'">
+        {{ row.auditStatus === 1 ? '待审核' : row.auditStatus === 2 ? '已驳回' : row.status === 1 ? '已发布' : '草稿' }}
+      </el-tag>
         </template>
       </el-table-column>
       <el-table-column label="置顶" width="70">
@@ -125,7 +146,9 @@ function create() {
           <el-button v-if="isAdmin" size="small" @click="recommend(row)">
             {{ row.recommended ? '取消推荐' : '推荐' }}
           </el-button>
-          <el-button size="small" type="danger" @click="del(row)">删除</el-button>
+          <el-button v-if="isAdmin && row.auditStatus === 1" size="small" type="success" @click="audit(row, true)">通过</el-button>
+      <el-button v-if="isAdmin && row.auditStatus === 1" size="small" type="danger" @click="audit(row, false)">驳回</el-button>
+      <el-button size="small" type="danger" @click="del(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>

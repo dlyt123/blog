@@ -1,6 +1,7 @@
 package com.back.backeddemo.controller;
 
 import com.back.backeddemo.common.BusinessException;
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.Post;
@@ -82,8 +83,8 @@ public class UserController {
         if (user == null) {
             throw new BusinessException(404, "用户不存在");
         }
-        int size = Math.min(Math.max(pageSize, 1), 50);
-        return Result.success(postService.listAdmin(1, null, id, Math.max(page, 1), size));
+        PageQuery pq = PageQuery.of(page, pageSize, 50);
+        return Result.success(postService.listAdmin(1, null, id, pq.page(), pq.size()));
     }
 
     /** 关注 */
@@ -116,15 +117,14 @@ public class UserController {
                                                 @RequestParam(defaultValue = "10") int pageSize,
                                                 HttpServletRequest request) {
         Long me = requireLogin(request);
-        int p = Math.max(page, 1);
-        int size = Math.min(Math.max(pageSize, 1), 50);
-        List<Post> list = postFavoriteMapper.listByUser(me, (p - 1) * size, size);
+        PageQuery pq = PageQuery.of(page, pageSize, 50);
+        List<Post> list = postFavoriteMapper.listByUser(me, pq.offset(), pq.size());
 
         PageResult<Post> result = new PageResult<>();
         result.setList(list == null ? new ArrayList<>() : list);
         result.setTotal(postFavoriteMapper.countActiveByUser(me));
-        result.setPage(p);
-        result.setPageSize(size);
+        result.setPage(pq.page());
+        result.setPageSize(pq.size());
         return Result.success(result);
     }
 
@@ -134,9 +134,8 @@ public class UserController {
                                                    @RequestParam(defaultValue = "10") int pageSize,
                                                    HttpServletRequest request) {
         Long me = requireLogin(request);
-        int p = Math.max(page, 1);
-        int size = Math.min(Math.max(pageSize, 1), 50);
-        return Result.success(postService.listByFollowees(me, p, size));
+        PageQuery pq = PageQuery.of(page, pageSize, 50);
+        return Result.success(postService.listByFollowees(me, pq.page(), pq.size()));
     }
 
     // ===== 辅助 =====

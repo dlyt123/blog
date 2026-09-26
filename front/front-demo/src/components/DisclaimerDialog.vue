@@ -69,8 +69,8 @@ function decline() {
         </label>
 
         <div class="actions">
-          <button class="btn ghost" @click="decline">不同意</button>
-          <button class="btn primary" :disabled="!checked" @click="agree">同意并继续</button>
+          <button class="anime-btn anime-btn--secondary" @click="decline">不同意</button>
+          <button class="anime-btn anime-btn--primary" :disabled="!checked" @click="agree">同意并继续</button>
         </div>
       </div>
     </div>
@@ -81,13 +81,14 @@ function decline() {
 .mask {
   position: fixed;
   inset: 0;
-  z-index: 2000;
-  background: rgba(58, 58, 74, 0.45);
+  z-index: var(--z-modal);
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: var(--space-5);
 }
 
 .dialog {
@@ -96,29 +97,30 @@ function decline() {
   max-height: 86vh;
   overflow-y: auto;
   background: var(--surface);
-  border-radius: 16px;
-  padding: 26px 28px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6) var(--space-8);
+  box-shadow: var(--shadow-xl);
 }
 
 .title {
-  margin: 0 0 10px;
-  font-size: 18px;
-  color: #e04e82;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+  color: var(--brand-700);
 }
 
 .intro {
-  margin: 0 0 14px;
+  margin: 0 0 var(--space-4);
   color: var(--text-body);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.7;
 }
 
 .points {
-  margin: 0 0 14px;
-  padding-left: 20px;
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-5);
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--text-sm);
   line-height: 1.8;
 }
 
@@ -128,68 +130,45 @@ function decline() {
 
 .more {
   display: inline-block;
-  margin-bottom: 18px;
-  color: #e04e82;
-  font-size: 13px;
+  margin-bottom: var(--space-5);
+  color: var(--brand-700);
+  font-size: var(--text-sm);
   text-decoration: underline;
 }
 
+/* 勾选条用次级底色，不要写死浅粉 —— 写死的话暗色模式下会变成一块白 */
 .check {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 12px 14px;
-  background: #fff8fb;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-soft);
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--text-strong);
   line-height: 1.6;
 }
 
 .check input {
   margin-top: 3px;
-  accent-color: #e04e82;
+  accent-color: var(--brand-500);
   flex-shrink: 0;
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
 }
 
-.btn {
-  height: 38px;
-  padding: 0 20px;
-  border-radius: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn.primary {
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  font-weight: 600;
-}
-
-.btn.primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn.ghost {
-  background: var(--surface);
-  border-color: var(--border-soft);
-  color: #888;
-}
+/* 两个按钮的外观来自全局 .anime-btn--primary / .anime-btn--secondary */
 
 @media (max-width: 560px) {
   .dialog {
-    padding: 20px 18px;
+    padding: var(--space-5) var(--space-4);
   }
 }
 </style>

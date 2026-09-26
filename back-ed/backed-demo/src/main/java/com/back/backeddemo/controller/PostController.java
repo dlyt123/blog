@@ -1,5 +1,6 @@
 package com.back.backeddemo.controller;
 
+import com.back.backeddemo.common.PageQuery;
 import com.back.backeddemo.common.PageResult;
 import com.back.backeddemo.common.Result;
 import com.back.backeddemo.entity.Post;
@@ -30,7 +31,8 @@ public class PostController {
                                          @RequestParam(required = false, defaultValue = "latest") String orderBy,
                                          @RequestParam(defaultValue = "1") int page,
                                          @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.success(postService.list(categoryId, tagId, keyword, orderBy, page, pageSize));
+        PageQuery pq = PageQuery.of(page, pageSize);
+        return Result.success(postService.list(categoryId, tagId, keyword, orderBy, pq.page(), pq.size()));
     }
 
     /** 文章详情（浏览量 +1） */
@@ -52,7 +54,8 @@ public class PostController {
     public Result<PageResult<Post>> search(@RequestParam String keyword,
                                            @RequestParam(defaultValue = "1") int page,
                                            @RequestParam(defaultValue = "10") int pageSize) {
-        return Result.success(postService.list(null, null, keyword, "latest", page, pageSize));
+        PageQuery pq = PageQuery.of(page, pageSize);
+        return Result.success(postService.list(null, null, keyword, "latest", pq.page(), pq.size()));
     }
 
     /** 关于我 */

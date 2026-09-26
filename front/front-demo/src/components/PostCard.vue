@@ -67,7 +67,16 @@ function formatTime(t) {
 </script>
 
 <template>
-  <article class="anime-card post-card" @click="goDetail">
+  <!-- 整卡可点，同时让键盘也能进：tabindex + Enter。
+       这里刻意不加 role="button"/"link" —— 卡片内部还有「作者」「标签」
+       这些可点元素，声明容器角色会形成嵌套交互元素，读屏器反而念不清楚。 -->
+  <article
+    class="anime-card post-card"
+    tabindex="0"
+    :aria-label="`阅读文章：${post.title}`"
+    @click="goDetail"
+    @keydown.enter="goDetail"
+  >
     <div class="post-main">
       <h2 class="post-title">
         <span v-if="post.pinned" class="pin-badge">置顶</span>
@@ -117,19 +126,28 @@ function formatTime(t) {
 
 .post-title {
   margin: 0 0 10px;
-  font-size: 20px;
+  font-size: var(--text-xl);
   color: var(--text-strong);
+  line-height: 1.4;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/* 卡片悬浮时标题变品牌色：让"整块卡片都可以点"这件事更明确 */
+.post-card:hover .post-title {
+  color: var(--brand-700);
 }
 
 .pin-badge {
   display: inline-block;
-  background: #ff6b9d;
-  color: #fff;
-  font-size: 12px;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-400));
+  color: var(--text-on-brand);
+  font-size: var(--text-xs);
+  font-weight: 500;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   margin-right: 6px;
   vertical-align: middle;
+  box-shadow: 0 2px 6px -2px rgba(255, 107, 157, 0.9);
 }
 
 .post-summary {
@@ -157,7 +175,7 @@ function formatTime(t) {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .author:hover {
@@ -168,9 +186,9 @@ function formatTime(t) {
 .author-avatar {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   overflow: hidden;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb);
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -183,14 +201,15 @@ function formatTime(t) {
   object-fit: cover;
 }
 
+/* 浅色渐变底配品牌深色字：白字在这个底上读不出来 */
 .author-fallback {
-  color: #fff;
+  color: var(--brand-800);
   font-weight: 700;
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .author-name {
-  color: #e04e82;
+  color: var(--brand-700);
   font-weight: 600;
 }
 
@@ -202,7 +221,7 @@ function formatTime(t) {
   flex-shrink: 0;
   width: 160px;
   height: 110px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -242,6 +261,15 @@ function formatTime(t) {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* 暗色下把自动封面整体压暗。
+   封面的颜色是 JS 按分类名算出来的（见 script 里的 COVER_THEMES），
+   CSS 拿不到那些具体色值，改不了；用 filter 调暗是这里最省事也最稳的做法。
+   不处理的话，深色列表里会一块块跳出浅粉浅绿，非常刺眼。
+   注意只压 .cover-auto，不要压用户自己上传的封面图。 */
+[data-theme='dark'] .cover-auto {
+  filter: brightness(0.62) saturate(0.9);
 }
 
 /* ===== 手机端：封面图改到上方、整宽显示，正文占满一行 =====

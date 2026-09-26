@@ -51,11 +51,11 @@ async function submit() {
       <input
         v-model="email"
         type="email"
-        class="input"
+        class="anime-input input"
         placeholder="你的邮箱地址"
         @keyup.enter="submit"
       />
-      <button class="btn" :disabled="submitting" @click="submit">
+      <button class="anime-btn anime-btn--primary anime-btn--sm" :disabled="submitting" @click="submit">
         {{ submitting ? '提交中…' : '订阅' }}
       </button>
     </div>
@@ -72,8 +72,10 @@ async function submit() {
   padding: 14px 18px;
   margin-bottom: 14px;
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  background: #fff8fb;
+  border-radius: var(--radius-lg);
+  /* 不要写死浅色：这是出现在每一页页脚的组件，
+     写死 #fff8fb 的话，暗色模式下会变成一大块刺眼的白。 */
+  background: var(--surface-soft);
 }
 
 .label {
@@ -108,53 +110,29 @@ async function submit() {
   gap: 8px;
 }
 
+/* 只覆盖尺寸；边框、圆角、悬停、焦点环全部来自全局 .anime-input */
 .input {
   width: 220px;
   height: 34px;
-  padding: 0 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-  background: var(--surface);
-  box-sizing: border-box;
+  font-size: var(--text-sm);
 }
 
-.input:focus {
-  border-color: #e04e82;
-}
-
-.btn {
-  height: 34px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* 订阅按钮用的是全局 .anime-btn--primary + .anime-btn--sm，本文件不再定义按钮样式 */
 
 .done {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 13px;
-  color: #3b6d11;
+  font-size: var(--text-sm);
+  /* 原来的 #3b6d11 是深橄榄绿，暗色下几乎看不见 */
+  color: var(--success);
 }
 
 .again {
   border: none;
   background: none;
-  color: #e04e82;
-  font-size: 12px;
+  color: var(--brand-700);
+  font-size: var(--text-xs);
   cursor: pointer;
   text-decoration: underline;
 }

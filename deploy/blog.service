@@ -65,6 +65,15 @@ Environment="BLOG_BACKUP_KEEP=7"
 # Linux 装了 mysql-client 后直接走 PATH；若提示找不到命令，改成 /usr/bin/mysqldump
 Environment="BLOG_MYSQLDUMP=mysqldump"
 
+# ================================================================
+# 日志留存期（⚠️ 合规硬要求，不要调小）
+# ================================================================
+# 《网络安全法》第二十一条要求网络日志留存【不少于 6 个月】。
+# 之前默认 90 天，不达标 —— 已改为：访问日志 180 天、操作日志 365 天。
+# 如需延长可继续调大；调小到 180 天以下会有合规风险。
+Environment="BLOG_CLEANUP_VISIT_DAYS=180"
+Environment="BLOG_CLEANUP_OPERATION_DAYS=365"
+
 # ---- 可选：同源部署（Nginx 同时托管前后端）时不需要配置 CORS ----
 # 只有前后端分开在不同域名/端口时才需要：
 # Environment="BLOG_CORS_ORIGINS=https://codeeras.cn,https://www.codeeras.cn"

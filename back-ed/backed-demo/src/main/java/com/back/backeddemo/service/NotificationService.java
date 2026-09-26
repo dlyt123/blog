@@ -12,6 +12,7 @@ import com.back.backeddemo.mapper.SubscribeMapper;
 import com.back.backeddemo.mapper.UserMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -56,8 +57,25 @@ public class NotificationService {
         this.commentMapper = commentMapper;
     }
 
+    /**
+     * 新文章发布 → 推送给订阅者。
+     *
+     * <p>⚠️ 2026-09-20 起<b>默认关闭</b> ✗ —— 订阅推送已改成
+     * {@link DailyDigestService} 的「每日精选」模式（每天早上一封、没文章就不发）。
+     * 如果这里还开着，作者发一篇文章订阅者就会收到<b>两封</b>（一封即时 + 一封第二天的精选）✗
+     *
+     * <p>想退回"即时推送"的话，把 {@code blog.notify.immediate-subscribe-push}
+     * 设成 true，并关掉 {@code blog.digest.enabled} 即可 ✓
+     */
+    @Value("${blog.notify.immediate-subscribe-push:false}")
+    private boolean immediateSubscribePush;
+
     /** 新文章发布 → 推送给订阅者 */
     public void notifyNewPost(Post post) {
+        if (!immediateSubscribePush) {
+            // 已改为「每日精选」模式，这里直接返回，避免重复发送
+            return;
+        }
         try {
             List<Subscribe> subs = subscribeMapper.listActive();
             if (subs == null || subs.isEmpty()) {

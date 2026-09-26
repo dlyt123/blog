@@ -20,6 +20,7 @@ public class WebConfig implements WebMvcConfigurer {
     private final AdminOnlyInterceptor adminOnlyInterceptor;
     private final RateLimitInterceptor rateLimitInterceptor;
     private final OperationLogInterceptor operationLogInterceptor;
+    private final UserStatusInterceptor userStatusInterceptor;
 
     @Value("${blog.upload.dir}")
     private String uploadDir;
@@ -31,12 +32,14 @@ public class WebConfig implements WebMvcConfigurer {
                      RequireLoginInterceptor requireLoginInterceptor,
                      AdminOnlyInterceptor adminOnlyInterceptor,
                      RateLimitInterceptor rateLimitInterceptor,
-                     OperationLogInterceptor operationLogInterceptor) {
+                     OperationLogInterceptor operationLogInterceptor,
+                     UserStatusInterceptor userStatusInterceptor) {
         this.jwtInterceptor = jwtInterceptor;
         this.requireLoginInterceptor = requireLoginInterceptor;
         this.adminOnlyInterceptor = adminOnlyInterceptor;
         this.rateLimitInterceptor = rateLimitInterceptor;
         this.operationLogInterceptor = operationLogInterceptor;
+        this.userStatusInterceptor = userStatusInterceptor;
     }
 
     /**
@@ -58,27 +61,21 @@ public class WebConfig implements WebMvcConfigurer {
         registry.addInterceptor(requireLoginInterceptor)
                 .addPathPatterns("/api/**");
 
-        // ④ 管理员专属：分类/标签/评论/友链/设置/统计 的后台管理
-        //    （文章管理不在此列，由 AdminPostController 内部按「管理员 / 本人」细粒度校验）
+        // ③.5 封号 / 禁言：登录之后才判得出，所以必须排在 JwtInterceptor 之后。
+        //      只拦写请求 —— 被封的人仍可浏览公开内容，只是不能发表任何东西。
+        registry.addInterceptor(userStatusInterceptor)
+                .addPathPatterns("/api/**");
+
+        // ④ 管理员专属：/api/admin/** 下**默认全部**要求管理员。
+        //    这是 fail-open → fail-closed 的关键改动：
+        //      · 旧写法：在下面手写十几条 addPathPatterns，漏一条 = 那个接口没有管理员校验，
+        //        而且不会报错、也不会有任何提示（媒体库 /api/admin/media 当初就是靠
+        //        Controller 内部自己判断角色兜住的，属于运气好）。
+        //      · 新写法：按前缀一次性覆盖，确实不能要求管理员的接口
+        //        必须在自己的方法/类上标 @AdminExempt（见 AdminOnlyInterceptor）。
+        //    忘记标注的后果是「接口暂时用不了」，而不是「接口被所有人访问」。
         registry.addInterceptor(adminOnlyInterceptor)
-                .addPathPatterns(
-                        "/api/admin/categories/**",
-                        "/api/admin/tags/**",
-                        "/api/admin/comments/**",
-                        "/api/admin/links/**",
-                        "/api/admin/settings/**",
-                        "/api/admin/stats/**",
-                        "/api/admin/subscribes/**",
-                        "/api/admin/visits/**",
-                        "/api/admin/sensitive-words/**",
-                        "/api/admin/sensitive-logs/**",
-                        "/api/admin/reports/**",
-                        "/api/admin/series/**",
-                        "/api/admin/export/**",
-                        "/api/admin/backup/**",
-                        "/api/admin/operation-logs/**",
-                        "/api/admin/mail/**"
-                );
+                .addPathPatterns("/api/admin/**");
 
         // ⑤ 操作日志（审计）：只记非 GET 的后台请求，注册在最外层，业务抛异常也能记到
         registry.addInterceptor(operationLogInterceptor)

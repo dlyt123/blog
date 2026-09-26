@@ -141,16 +141,16 @@ function formatTime(t) {
 
       <textarea
         v-model="content"
-        class="comment-textarea"
+        class="anime-input comment-textarea"
         rows="3"
         :placeholder="isLogin ? '说点什么吧～' : '请先登录后再评论'"
         :disabled="!isLogin"
       />
       <div class="form-actions">
-        <button v-if="!isLogin" class="anime-btn primary" @click="goLogin">去登录</button>
+        <button v-if="!isLogin" class="anime-btn anime-btn--primary" @click="goLogin">去登录</button>
         <button
           v-else
-          class="anime-btn primary"
+          class="anime-btn anime-btn--primary"
           :disabled="submitting"
           @click="submit"
         >
@@ -189,7 +189,7 @@ function formatTime(t) {
         </div>
       </div>
     </div>
-    <p v-else class="empty">还没有评论，快来抢沙发～</p>
+    <p v-else class="anime-empty">💬 还没有评论，快来抢沙发～</p>
 
     <div v-if="hasMore" class="load-more">
       <el-button plain @click="loadMore">加载更多评论</el-button>
@@ -199,27 +199,28 @@ function formatTime(t) {
 
 <style scoped>
 .comment-form {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
 }
 
 .me-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 
 .me-avatar,
 .head-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   overflow: hidden;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb);
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  /* 浅色渐变底上的首字母改成深色，白字在这块底上等于隐形 */
+  color: var(--brand-800);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -227,7 +228,7 @@ function formatTime(t) {
 .head-avatar.small {
   width: 28px;
   height: 28px;
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .me-avatar img,
@@ -238,73 +239,39 @@ function formatTime(t) {
 }
 
 .avatar-fallback {
-  font-size: 16px;
+  font-size: var(--text-lg);
 }
 
 .me-name strong {
   display: block;
   color: var(--text-strong);
-  font-size: 15px;
+  font-size: var(--text-md);
 }
 
 .me-tip {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
+/* 输入框外观统一由全局 .anime-input 提供（圆角 10px、聚焦品牌色边框 + 3.5px 光环）。
+   这里以前自己写了一份：圆角 10px 但聚焦用 #e04e82 + 3px 弱光环，
+   和全站其它输入框的聚焦反馈不一样。已改用全局类，只保留尺寸差异。 */
 .comment-textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  font-size: 14px;
-  font-family: inherit;
-  outline: none;
-  resize: vertical;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-
-.comment-textarea:focus {
-  border-color: #e04e82;
-  box-shadow: 0 0 0 3px rgba(224, 78, 130, 0.1);
-}
-
-.comment-textarea:disabled {
-  background: var(--surface-soft);
-  cursor: not-allowed;
+  line-height: 1.7;
 }
 
 .form-actions {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   display: flex;
   justify-content: flex-end;
 }
 
-.anime-btn {
-  height: 38px;
-  padding: 0 20px;
-  border: none;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  background: linear-gradient(135deg, #ff6b9d, #ff8fb5);
-  color: #fff;
-  transition: opacity 0.2s;
-}
-
-.anime-btn:hover:not(:disabled) {
-  opacity: 0.92;
-}
-
-.anime-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+/* 按钮外观统一由全局的 .anime-btn 提供（src/styles/anime.css）。
+   这里以前自己写了一份 —— 而全站十几个页面各写了一份，
+   结果同类按钮在不同页面的高度/圆角/字重都不一样。已删除。 */
 
 .comment-item {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
 .comment-head,
@@ -312,7 +279,7 @@ function formatTime(t) {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .head-info {
@@ -322,26 +289,26 @@ function formatTime(t) {
 
 .comment-nickname {
   font-weight: 600;
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .comment-time {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 .comment-content,
 .reply-content {
   margin: 0;
-  line-height: 1.6;
-  color: var(--text-strong);
+  line-height: 1.7;
+  color: var(--text-body);
 }
 
 .comment-replies {
   margin-top: 10px;
-  padding: 10px 14px;
-  background: #faf2f6;
-  border-radius: 10px;
+  padding: 10px var(--space-4);
+  background: var(--surface-sunk);
+  border-radius: var(--radius-md);
 }
 
 .reply-item {
@@ -355,19 +322,14 @@ function formatTime(t) {
 }
 
 .reply-nickname {
-  color: #8a7a9a;
+  color: var(--text-muted);
   font-weight: 600;
 }
 
-.empty {
-  text-align: center;
-  color: var(--text-muted);
-  padding: 20px;
-}
 /* 头像与昵称可点击进用户主页 */
 .clickable {
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .clickable:hover {
@@ -377,22 +339,24 @@ function formatTime(t) {
 .comment-nickname.clickable:hover,
 .reply-nickname.clickable:hover {
   text-decoration: underline;
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .report-link {
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-xs);
   cursor: pointer;
   margin-left: auto;
+  padding: 0 2px;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .report-link:hover {
-  color: #e24b4a;
+  color: var(--danger);
 }
 
 .load-more {
   text-align: center;
-  margin: 16px 0;
+  margin: var(--space-4) 0;
 }
 </style>

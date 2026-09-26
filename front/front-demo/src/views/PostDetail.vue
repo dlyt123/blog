@@ -296,7 +296,7 @@ function goAuthor() {
   <div v-if="post">
     <div class="detail-layout">
       <div class="detail-main">
-        <article class="anime-card post-detail">
+        <article class="anime-card anime-card--flat post-detail">
           <h1 class="post-title">{{ post.title }}</h1>
 
           <div class="post-meta">
@@ -365,12 +365,24 @@ function goAuthor() {
         </article>
 
         <div class="prev-next">
-          <div v-if="post.prev" class="nav-item anime-card" @click="go(post.prev.id)">
+          <div
+            v-if="post.prev"
+            class="nav-item anime-card"
+            tabindex="0"
+            @click="go(post.prev.id)"
+            @keydown.enter="go(post.prev.id)"
+          >
             <span class="label">上一篇</span>
             <span class="nav-title">{{ post.prev.title }}</span>
           </div>
           <div v-else class="nav-item disabled">上一篇没有了</div>
-          <div v-if="post.next" class="nav-item anime-card" @click="go(post.next.id)">
+          <div
+            v-if="post.next"
+            class="nav-item anime-card"
+            tabindex="0"
+            @click="go(post.next.id)"
+            @keydown.enter="go(post.next.id)"
+          >
             <span class="label">下一篇</span>
             <span class="nav-title">{{ post.next.title }}</span>
           </div>
@@ -378,10 +390,17 @@ function goAuthor() {
         </div>
 
         <!-- 相关推荐 -->
-        <div v-if="related.length" class="related anime-card">
+        <div v-if="related.length" class="related anime-card anime-card--flat">
           <h3 class="related-title">📚 相关推荐</h3>
           <div class="related-list">
-            <div v-for="r in related" :key="r.id" class="related-item" @click="go(r.id)">
+            <div
+              v-for="r in related"
+              :key="r.id"
+              class="related-item"
+              tabindex="0"
+              @click="go(r.id)"
+              @keydown.enter="go(r.id)"
+            >
               <span class="related-item-title">{{ r.title }}</span>
               <span class="related-item-meta">👀 {{ r.views }} · {{ formatTime(r.publishTime || r.createTime) }}</span>
             </div>
@@ -400,7 +419,9 @@ function goAuthor() {
             :key="item.id"
             class="toc-item"
             :class="['level-' + item.level, { active: activeId === item.id }]"
+            tabindex="0"
             @click="scrollToHeading(item.id)"
+            @keydown.enter="scrollToHeading(item.id)"
           >{{ item.text }}</li>
         </ul>
       </aside>
@@ -413,27 +434,53 @@ function goAuthor() {
     </div>
   </div>
 
-  <div v-else-if="loading" class="loading-tip">加载中...</div>
+  <!-- 首屏加载：画一张"文章的形状"，比一行"加载中..."更有信息量，
+       而且高度和真实正文接近，读完不会跳版 -->
+  <div v-else-if="loading" class="anime-card anime-card--flat detail-skeleton" aria-hidden="true">
+    <div class="anime-skeleton sk-line sk-h1"></div>
+    <div class="anime-skeleton sk-line sk-meta"></div>
+    <div v-for="i in 5" :key="i" class="anime-skeleton sk-line sk-p"></div>
+    <div class="anime-skeleton sk-line sk-p sk-p--short"></div>
+  </div>
 </template>
 
 <style scoped>
 .post-detail {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-4);
+  /* 正文卡的留白比列表卡更宽松。
+     卡片统一 20px 内边距对列表够用，但长文会读得很挤 ——
+     左右各 32px 让单行字数落进 30~40 字的舒适区间。 */
+  padding: var(--space-8) var(--space-8) var(--space-6);
 }
 
+/* 文章大标题：和正文 h1 同字号，字重更高，字距略收紧。
+   中文大字号不需要 negative tracking 太多，-0.01em 刚好把"松"的感觉收掉。 */
 .post-title {
-  margin: 0 0 14px;
-  font-size: 28px;
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.32;
+  letter-spacing: -0.01em;
   color: var(--text-strong);
+}
+
+@media (max-width: 768px) {
+  .post-detail {
+    padding: var(--space-5) var(--space-4) var(--space-4);
+  }
+  .post-title {
+    font-size: var(--text-2xl);
+  }
 }
 
 .post-meta {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--space-4);
   color: var(--text-muted);
-  font-size: 13px;
-  margin-bottom: 12px;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  margin-bottom: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -441,18 +488,24 @@ function goAuthor() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+}
+
+.author:hover .author-name {
+  text-decoration: underline;
 }
 
 .author-avatar {
   width: 26px;
   height: 26px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   overflow: hidden;
-  background: linear-gradient(135deg, #ffd6e4, #d6f0fb);
+  background: linear-gradient(135deg, var(--brand-200), var(--blue-300));
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--surface);
 }
 
 .author-avatar img {
@@ -461,99 +514,174 @@ function goAuthor() {
   object-fit: cover;
 }
 
+/* 无头像时的首字母：原来用的是白字，压在浅粉浅蓝的渐变上几乎看不见。
+   改成品牌深色，浅色/暗色两种模式都能读。 */
 .author-fallback {
-  color: #fff;
+  color: var(--brand-800);
   font-weight: 700;
   font-size: 12px;
 }
 
 .author-name {
-  color: #e04e82;
+  color: var(--brand-700);
   font-weight: 600;
 }
 
-.tags {
-  margin-bottom: 16px;
-}
-
-.anime-tag {
-  display: inline-block;
-  padding: 4px 10px;
-  margin-right: 6px;
-  background: var(--surface-pink);
-  color: #e04e82;
-  border-radius: 999px;
-  font-size: 12px;
-}
-
-.anime-tag.clickable {
+/* 系列徽标：紫色系，和分类 / 标签区分开 */
+.series-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--purple-100);
+  color: var(--purple-700);
+  font-size: var(--text-xs);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
-.anime-tag.clickable:hover {
-  background: #ffd6e4;
+.series-badge:hover {
+  background: var(--purple-300);
+}
+
+.tags {
+  margin-bottom: var(--space-4);
+}
+
+/* 详情页标签用"浅底 + 品牌字"，和列表页的实心彩胶囊刻意不同：
+   列表要快速扫读所以靠颜色区分，详情页只需要安静地说明归属。
+   这里提高一级特异性（.tags .anime-tag）压过全局的 nth-child 彩色底，
+   否则 scoped 规则和全局规则同为 (0,2,0)，谁生效取决于打包顺序 —— 太脆。 */
+.tags .anime-tag {
+  display: inline-block;
+  padding: 3px 12px;
+  margin: 0 6px 6px 0;
+  background: var(--surface-pink);
+  color: var(--brand-700);
+  border: 1px solid var(--border-softer);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.tags .anime-tag.clickable {
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+
+.tags .anime-tag.clickable:hover {
+  background: var(--brand-100);
+  border-color: var(--border-brand);
+  transform: none;
+  filter: none;
 }
 
 .post-actions {
   display: flex;
   justify-content: center;
-  gap: 14px;
-  margin-top: 24px;
-  padding-top: 20px;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
   border-top: 1px dashed var(--border-soft);
 }
 
-.fav-btn.favorited {
-  background: linear-gradient(135deg, #ffe9b8, #ffd98e);
-  border-color: #ffd98e;
-  color: #fff;
-}
-
+/* 点赞 / 收藏 / 举报这三个是"胶囊操作条"：
+   底座沿用全局按钮的 46px 高度与 pill 圆角，但状态色自己管
+   （全局 .anime-btn--secondary 的 :hover 特异性是 (0,4,0)，
+   本地 .liked 只有 (0,3,0) 会被盖掉，反而在悬停时"变回未选中"，很怪）。 */
 .like-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   height: 44px;
-  padding: 0 22px;
+  padding: 0 var(--space-5);
   border: 1px solid var(--border-soft);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--surface);
-  color: #6a6a7a;
-  font-size: 14px;
+  color: var(--text-body);
+  font-size: var(--text-base);
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
 }
 
 .like-btn:hover:not(:disabled) {
-  border-color: #ffb3cd;
-  color: #e04e82;
+  border-color: var(--border-brand);
+  color: var(--brand-700);
+  background: var(--surface-pink);
   transform: translateY(-1px);
 }
 
-.like-btn.liked {
-  background: linear-gradient(135deg, #ffd6e4, #ffb3cd);
-  border-color: #ffb3cd;
-  color: #fff;
+.like-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
 }
 
 .like-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .like-icon {
   font-size: 18px;
+  line-height: 1;
+}
+
+/* 已点赞：实心品牌渐变。原来用的是 #ffd6e4→#ffb3cd 配白字，
+   浅粉底上的白字对比度只有 1.6:1，基本等于看不见。 */
+.like-btn.liked {
+  background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-400) 100%);
+  border-color: transparent;
+  color: var(--text-on-brand);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42),
+              var(--shadow-brand);
+}
+
+.like-btn.liked:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%);
+  color: var(--text-on-brand);
+}
+
+/* 已收藏：琥珀色。原实现同样是浅黄底 + 白字（#ffe9b8/#ffd98e），
+   这里换成柔和的琥珀底 + 深琥珀字，浅色和暗色都成立。 */
+.fav-btn.favorited {
+  background: var(--amber-100);
+  border-color: var(--amber-300);
+  color: var(--amber-700);
+}
+
+.fav-btn.favorited:hover:not(:disabled) {
+  background: var(--amber-100);
+  border-color: var(--amber-500);
+  color: var(--amber-700);
+}
+
+/* 举报是低频且带负面意味的操作，视觉上要压到最轻 */
+.report-btn {
+  color: var(--text-muted);
+}
+
+.report-btn:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: rgba(212, 71, 92, 0.32);
+  background: var(--danger-soft);
 }
 
 .prev-next {
   display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .nav-item {
   flex: 1;
+  min-width: 0; /* 允许标题省略号截断，否则长标题会把卡片撑开 */
   cursor: pointer;
   text-align: center;
 }
@@ -561,31 +689,83 @@ function goAuthor() {
 .nav-item .label {
   display: block;
   color: var(--text-muted);
-  font-size: 12px;
-  margin-bottom: 4px;
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
 }
 
 .nav-item .nav-title {
-  color: #e04e82;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--brand-700);
+  font-size: var(--text-base);
+  font-weight: 500;
+  line-height: 1.5;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
+/* 占位格：用虚线框而不是一行灰字，和隔壁真卡片等高，
+   否则"上一篇没有了"会让整个操作条高度塌一半。 */
 .nav-item.disabled {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  color: #d0c0d0;
-  padding: 20px;
+  min-height: 78px;
+  padding: var(--space-5);
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--radius-xl);
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+  cursor: default;
 }
 
 .loading-tip {
   text-align: center;
   color: var(--text-muted);
-  padding: 60px;
+  padding: var(--space-12) var(--space-5);
+  font-size: var(--text-base);
+}
+
+/* ===== 文章骨架屏（首次加载时替代"加载中..."） ===== */
+.detail-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-skeleton .sk-line {
+  height: 14px;
+  border-radius: var(--radius-xs);
+}
+
+.detail-skeleton .sk-h1 {
+  height: 32px;
+  width: 68%;
+  margin-bottom: var(--space-2);
+}
+
+.detail-skeleton .sk-meta {
+  height: 14px;
+  width: 42%;
+  margin-bottom: var(--space-5);
+}
+
+.detail-skeleton .sk-p {
+  width: 100%;
+}
+
+.detail-skeleton .sk-p--short {
+  width: 56%;
 }
 
 /* ===== 文章目录 ===== */
 .detail-layout {
   display: flex;
-  gap: 20px;
+  gap: var(--space-5);
   align-items: flex-start;
 }
 
@@ -603,16 +783,18 @@ function goAuthor() {
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
-  padding: 14px 12px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-3);
+  box-shadow: var(--shadow-xs);
+  scrollbar-width: thin;
 }
 
 .toc-title {
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-strong);
-  margin-bottom: 10px;
-  padding-bottom: 8px;
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
   border-bottom: 1px dashed var(--border-soft);
 }
 
@@ -624,25 +806,29 @@ function goAuthor() {
 
 .toc-item {
   padding: 6px 10px;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--text-body);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
 }
 
 .toc-item:hover {
-  color: #e04e82;
+  color: var(--brand-700);
   background: var(--surface-pink);
 }
 
+/* 当前章节：左侧一道实心短杠 + 向右淡出的粉色底。
+   --brand-100 在暗色下会翻转成深玫红，所以这个渐变两种模式都成立。 */
 .toc-item.active {
-  color: #e04e82;
-  background: linear-gradient(90deg, #ffd6e4, transparent);
+  color: var(--brand-700);
+  background: linear-gradient(90deg, var(--brand-100), transparent);
+  box-shadow: inset 2px 0 0 var(--brand-500);
   font-weight: 600;
 }
 
@@ -658,20 +844,20 @@ function goAuthor() {
 
 /* ===== 版权声明 ===== */
 .copyright {
-  margin-top: 24px;
-  padding: 16px 18px;
+  margin-top: var(--space-6);
+  padding: var(--space-4) var(--space-4);
   border: 1px dashed var(--border-soft);
-  border-radius: 12px;
-  background: #fffafc;
-  font-size: 13px;
-  color: #8a8a9a;
+  border-radius: var(--radius-lg);
+  background: var(--surface-soft);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   line-height: 1.8;
 }
 
 .copyright-head {
   font-weight: 600;
   color: var(--text-strong);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .copyright-text {
@@ -679,7 +865,7 @@ function goAuthor() {
 }
 
 .cp-author {
-  color: #e04e82;
+  color: var(--brand-700);
   cursor: pointer;
   font-weight: 500;
 }
@@ -689,44 +875,49 @@ function goAuthor() {
 }
 
 .cp-link {
-  color: #7b5ea7;
+  color: var(--purple-700);
   cursor: pointer;
   text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cp-link:hover {
+  color: var(--purple-500);
 }
 
 .copyright-license {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 
 /* ===== 相关推荐 ===== */
 .related {
-  margin-bottom: 16px;
-  padding: 20px;
+  margin-bottom: var(--space-4);
 }
 
 .related-title {
-  margin: 0 0 12px;
-  font-size: 16px;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: 600;
   color: var(--text-strong);
 }
 
 .related-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
 }
 
 .related-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .related-item:hover {
@@ -736,21 +927,23 @@ function goAuthor() {
 .related-item-title {
   flex: 1;
   min-width: 0;
-  color: #5a5a6a;
-  font-size: 14px;
+  color: var(--text-body);
+  font-size: var(--text-base);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .related-item:hover .related-item-title {
-  color: #e04e82;
+  color: var(--brand-700);
 }
 
 .related-item-meta {
   flex-shrink: 0;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===== 图片灯箱 ===== */
@@ -761,25 +954,32 @@ function goAuthor() {
 .lightbox-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
-  background: rgba(0, 0, 0, 0.85);
+  z-index: var(--z-modal);
+  background: rgba(0, 0, 0, 0.86);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
   cursor: zoom-out;
+  /* 入场淡入，避免点图瞬间"啪"地糊一屏 */
+  animation: lightbox-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes lightbox-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .lightbox-img {
   max-width: 92vw;
   max-height: 86vh;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
 }
 
 .lightbox-tip {
-  margin-top: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
+  margin-top: var(--space-4);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: var(--text-sm);
 }
 </style>

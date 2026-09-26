@@ -95,7 +95,7 @@ function actionType(action) {
       <el-table-column label="时间" width="170">
         <template #default="{ row }">{{ formatTime(row.createTime) }}</template>
       </el-table-column>
-      <template #empty><p class="empty">还没有操作记录</p></template>
+      <template #empty><p class="anime-empty">📋 还没有操作记录</p></template>
     </el-table>
 
     <div v-if="total > pageSize" class="pager">
@@ -106,12 +106,38 @@ function actionType(action) {
 </template>
 
 <style scoped>
-.head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 12px; flex-wrap: wrap; }
-.title { margin: 0; color: var(--text-strong); }
-.tools { display: flex; gap: 8px; }
-.tip { margin: 0 0 14px; color: var(--text-muted); font-size: 12px; }
-.empty { color: var(--text-muted); padding: 20px; }
-.ok { color: #3cba7a; }
-.bad { color: #e24b4a; }
-.pager { display: flex; justify-content: center; margin-top: 16px; }
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  color: var(--text-strong);
+}
+
+.tools {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.tip {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* 操作结果：成功/失败走语义色 */
+.ok { color: var(--success); }
+.bad { color: var(--danger); }
+
+.pager {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
 </style>
